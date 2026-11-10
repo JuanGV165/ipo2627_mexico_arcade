@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matamarcianos Arcade - IA Táctica</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <main id="game-container">
+        <canvas id="gameCanvas" width="1200" height="800"></canvas>
+        
+        <div id="ui-layer">
+            <header id="hud" class="hidden">
+                <div class="hud-item">Puntos: <span id="score">0</span></div>
+                <div class="hud-item">Bajas: <span id="kills">0</span> / <span id="wave-target">0</span></div>
+                <div class="hud-item">Oleada: <span id="wave">1</span></div>
+                <div class="hud-item">
+                    <span id="choreo-name">ESCUADRÓN</span>
+                </div>
+                
+                <div class="hud-item health-container">
+                    Vida:
+                    <div class="health-bar-bg">
+                        <div id="health-fill" class="health-bar-fill"></div>
+                    </div>
+                </div>
+                
+                <!-- NUEVO BOTÓN DE PAUSA -->
+                <button id="btn-pause-hud" class="btn-small">⏸️ Pausa</button>
+            </header>
+
+            <div id="wave-announcement" class="hidden">
+                <h2 id="wave-text">¡OLEADA 1!</h2>
+            </div>
+
+            <section id="main-menu" class="menu-screen">
+                <h1>Operación Éxodo</h1>
+                <button id="btn-start" class="btn">Comenzar Juego</button>
+            </section>
+
+            <section id="pause-menu" class="menu-screen hidden">
+                <h2>Juego Pausado</h2>
+                <button id="btn-resume" class="btn">Reanudar</button>
+            </section>
+
+            <section id="game-over" class="menu-screen hidden">
+                <h2>Nave Destruida</h2>
+                <p>Puntuación final: <span id="final-score">0</span></p>
+                <button id="btn-restart" class="btn">Volver a Jugar</button>
+            </section>
+        </div>
+    </main>
+    
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
