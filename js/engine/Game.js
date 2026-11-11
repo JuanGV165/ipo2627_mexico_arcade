@@ -103,7 +103,8 @@ export class Game {
             this.wave++;
             this.waveKills = 0;
             this.enemiesSpawnedThisWave = 0;
-            this.waveEnemiesTotal = 4 + (this.wave * 3);
+            // Multiplicador más suave (por cada oleada suman 2 naves más en total, no 3)
+            this.waveEnemiesTotal = 4 + (this.wave * 2);
             this.waveMessageTimer = 180;
             
             this.player.health = this.player.maxHealth;
@@ -133,13 +134,8 @@ export class Game {
             this.player.isShooting = false;
         }
 
-        // ESCALADO DE ENEMIGOS AGRESIVO OLEADA 6+
-        let maxActive = 4;
-        if (this.wave < 6) {
-            maxActive = Math.min(this.wave + 1, 6);
-        } else {
-            maxActive = Math.min(6 + Math.floor((this.wave - 5) * 1.5), 14); // Hasta 14 a la vez
-        }
+        // ESCALADO DE ENEMIGOS PROGRESIVO Y SUAVE
+        let maxActive = Math.min(4 + Math.floor((this.wave - 1) * 0.75), 12);
 
         if (this.enemies.length < maxActive && this.enemiesSpawnedThisWave < this.waveEnemiesTotal && Math.random() < 0.05) {
             this.enemies.push(new Enemy(this.enemyIdCounter++, this.squad.leader.x, this.squad.leader.y, this.squad.leader.angle, this.squad.currentChoreo));

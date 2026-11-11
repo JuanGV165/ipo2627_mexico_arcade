@@ -4,8 +4,9 @@ export class UIManager {
     }
 
     bindButtons({ onStart, onRestart, onResume, onTogglePause }) {
-        document.getElementById('btn-start').addEventListener('click', onStart);
-        document.getElementById('btn-restart').addEventListener('click', onRestart);
+        document.getElementById('btn-start').addEventListener('click', () => onStart('CLASSIC'));
+        document.getElementById('btn-start-allies').addEventListener('click', () => onStart('ALLIES'));
+        document.getElementById('btn-restart').addEventListener('click', () => onRestart());
         document.getElementById('btn-resume').addEventListener('click', onResume);
         document.getElementById('btn-pause-hud').addEventListener('click', onTogglePause);
     }

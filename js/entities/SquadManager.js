@@ -15,6 +15,7 @@ export class SquadManager {
         
         this.isAntiCharge = false;
         this.isHarassing = false;
+        this.turretTimer = 0; // Temporizador para detectar círculos en movimiento continuo
     }
 
     wrap(entity) {
@@ -66,11 +67,19 @@ export class SquadManager {
         let dotProductAim = (pVelNormX * pDirX) + (pVelNormY * pDirY);
         let dotProductLeader = (pVelNormX * toLeaderNormX) + (pVelNormY * toLeaderNormY);
 
-        // 1. Detección PREVIA de carga lineal (incluso antes de que estés cerca)
-        this.isAntiCharge = (dotProductLeader > 0.65 && pSpeedSq > 3.0 && distToPlayer < 750);
-        this.isHarassing = (distToPlayer > 650);
+        // 1. Detección PREVIA de carga lineal
+        this.isAntiCharge = (dotProductLeader > 0.65 && pSpeedSq > 3.0 && distToPlayer < 350);
+        this.isHarassing = (distToPlayer > 350);
         
-        let isTurret = (player.spinAccumulator > 0.08 && player.isShooting && pSpeedSq < 1.0);
+        // 2. Detección de círculos en movimiento (hacer "donuts" disparando)
+        if (player.spinAccumulator > 0.05 && player.isShooting) {
+            this.turretTimer++;
+        } else {
+            this.turretTimer = 0;
+        }
+
+        // Se activa quieto, O si lleva más de 90 frames (1.5s) dando vueltas sin parar
+        let isTurret = (player.spinAccumulator > 0.08 && player.isShooting && pSpeedSq < 1.0) || (this.turretTimer > 90);
         let isStraightCharge = (pSpeedSq > 3.5 && player.isShooting && dotProductAim > 0.80);
 
         this.activeTactic = this.currentChoreo;
@@ -93,7 +102,7 @@ export class SquadManager {
 
         let targetAngle = Math.atan2(dy, dx);
         if (this.isAntiCharge) {
-            targetAngle += Math.PI / 1.5; // El líder maniobra hacia un flanco preventivo
+            targetAngle += Math.PI / 1.5; 
             this.leader.speed *= 0.85;
         } else if (phase === 'SETUP') {
             if (distToPlayer > 400) targetAngle += 0.3; 
@@ -118,8 +127,6 @@ export class SquadManager {
 
         const cosL = Math.cos(this.leader.angle);
         const sinL = Math.sin(this.leader.angle);
-
-        // Número total de enemigos activos
         const totalEnemies = enemies.length;
 
         for (let index = 0; index < totalEnemies; index++) {
@@ -142,9 +149,8 @@ export class SquadManager {
                 } else {
                     overrideSpeed = 2.5;
                 }
-            }
+            } 
             else if (this.activeTactic === 'SPLIT_FLANKS' || this.isAntiCharge) {
-                // Flanqueo preventivo por carriles exteriores
                 let side = (index % 2 === 0) ? 1 : -1;
                 let flankDistance = 400 + (index * 20);
                 slotX = player.x + Math.cos(player.angle + (Math.PI/2 * side)) * flankDistance;
@@ -152,21 +158,17 @@ export class SquadManager {
                 overrideSpeed = 4.0;
             } 
             else if (totalEnemies >= 8) {
-                // TRIPLE V (V central grande + 2 alas secundarias)
-                let wingGroup = index % 3; // 0: Centro, 1: Ala Izquierda, 2: Ala Derecha
+                let wingGroup = index % 3; 
                 let groupIndex = Math.floor(index / 3);
                 
                 let relX = 0, relY = 0;
                 if (wingGroup === 0) {
-                    // V central grande
                     relX = -groupIndex * 50 - 40;
                     relY = (groupIndex % 2 === 0 ? 1 : -1) * (groupIndex * 35 + 20);
                 } else if (wingGroup === 1) {
-                    // Ala Izquierda
                     relX = -groupIndex * 45 - 90;
                     relY = -70 - (groupIndex * 35);
                 } else {
-                    // Ala Derecha
                     relX = -groupIndex * 45 - 90;
                     relY = 70 + (groupIndex * 35);
                 }
@@ -206,7 +208,6 @@ export class SquadManager {
 
             let indEvadeX = 0, indEvadeY = 0;
 
-            // Esquiva individual de balas enemigas cercanas o disparos del jugador
             for (let i = 0; i < bullets.length; i++) {
                 let b = bullets[i];
                 let bdx = enemy.x - b.x;
@@ -214,7 +215,7 @@ export class SquadManager {
                 let bdy = enemy.y - b.y;
                 if (bdy > this.mh / 2) bdy -= this.mh; else if (bdy < -this.mh / 2) bdy += this.mh;
                 
-                if (bdx * bdx + bdy * bdy < 14400) { // Si una bala pasa a menos de 120px
+                if (bdx * bdx + bdy * bdy < 14400) { 
                     indEvadeX += bdy * 0.1;
                     indEvadeY -= bdx * 0.1;
                     enemy.evadeTimer = 18;
@@ -285,7 +286,6 @@ export class SquadManager {
             let fireRange = (this.isAntiCharge || this.isHarassing) ? 450000 : 360000;
             
             if (pDistSqE < fireRange && enemy.cooldown === 0 && (phase === 'STRIKE' || index % 2 === 0 || this.isAntiCharge || this.isHarassing || this.activeTactic === 'ANTI_TURRETS')) {
-                // Si están en modo anti-carga, saturan la trayectoria prevista de avance del jugador
                 let aimX = pdx;
                 let aimY = pdy;
                 if (this.isAntiCharge) {

@@ -46,12 +46,11 @@ export class Player {
         if (this.y < 0) this.y += mapHeight;
         if (this.y >= mapHeight) this.y -= mapHeight;
 
+        // Curación constante al 100% sin penalización a partir de la oleada 4
         if (this.healDelay > 0) {
             this.healDelay--;
         } else if (this.health > 0 && this.health < this.maxHealth) {
-            let healAmount = 0.03;
-            if (wave >= 4) healAmount *= 0.7; 
-            this.health = Math.min(this.maxHealth, this.health + healAmount);
+            this.health = Math.min(this.maxHealth, this.health + 0.03); 
         }
 
         if (this.invulnerableFrames > 0) this.invulnerableFrames--;
@@ -62,12 +61,12 @@ export class Player {
         if (this.invulnerableFrames > 0) return false;
         this.health -= amount;
         this.invulnerableFrames = 72;
-        this.healDelay = 150; // 2.5 segundos de bloqueo
+        this.healDelay = 150; // 2.5 segundos de bloqueo al recibir daño
         if (this.health <= 0) this.health = 0;
         return true;
     }
     
     shoot() {
-        this.healDelay = 150; // 2.5 segundos de bloqueo
+        this.healDelay = 150; // 2.5 segundos de bloqueo al disparar
     }
 }
