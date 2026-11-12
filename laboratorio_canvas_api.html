@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio Canvas API</title>
+    <style>
+        :root {
+            --bg: #f4f6fb;
+            --panel: #fff;
+            --ink: #172033;
+            --muted: #64748b;
+            --line: #dce3ef;
+            --accent: #3659d9;
+            --soft: #edf1ff;
+            --good: #16834b;
+            --bad: #b54737
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font: 15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif
+        }
+
+        header {
+            background: #172554;
+            color: white;
+            padding: 25px max(20px, calc((100% - 1120px)/2))
+        }
+
+        header h1 {
+            margin: 0 0 5px;
+            font-size: 26px
+        }
+
+        header p {
+            margin: 0;
+            color: #dbe5ff
+        }
+
+        main {
+            max-width: 1120px;
+            margin: 22px auto;
+            padding: 0 18px 40px;
+            display: grid;
+            grid-template-columns: 310px 1fr;
+            gap: 18px
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 17px;
+            box-shadow: 0 3px 12px #1b2a4a0a
+        }
+
+        h2 {
+            font-size: 18px;
+            margin: 0 0 12px
+        }
+
+        h3 {
+            font-size: 16px;
+            margin: 0 0 7px
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 13px
+        }
+
+        .exercise {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: white;
+            margin: 7px 0;
+            cursor: pointer;
+            color: var(--ink)
+        }
+
+        .exercise.active {
+            border-color: var(--accent);
+            background: var(--soft)
+        }
+
+        .exercise strong {
+            display: block
+        }
+
+        .exercise small {
+            color: var(--muted)
+        }
+
+        .workspace {
+            display: grid;
+            gap: 16px
+        }
+
+        .topline {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        canvas {
+            width: 100%;
+            height: 300px;
+            display: block;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: white
+        }
+
+        .editor {
+            width: 100%;
+            min-height: 250px;
+            resize: vertical;
+            border: 1px solid #34415c;
+            border-radius: 10px;
+            background: #111827;
+            color: #e5edff;
+            padding: 14px;
+            font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+            tab-size: 2
+        }
+
+        button.action {
+            border: 0;
+            border-radius: 9px;
+            padding: 9px 14px;
+            background: var(--accent);
+            color: white;
+            font-weight: 650;
+            cursor: pointer
+        }
+
+        button.secondary {
+            background: #e9edf5;
+            color: #26334b
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .callout {
+            background: #f7f9ff;
+            border: 1px solid #e0e7ff;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 10px
+        }
+
+        .status {
+            font-size: 13px;
+            min-height: 22px;
+            margin-top: 8px
+        }
+
+        .status.ok {
+            color: var(--good)
+        }
+
+        .status.err {
+            color: var(--bad)
+        }
+
+        ul {
+            padding-left: 20px;
+            margin: 7px 0
+        }
+
+        .task {
+            font-weight: 650
+        }
+
+        .hint {
+            margin-top: 7px
+        }
+
+        @media(max-width:800px) {
+            main {
+                grid-template-columns: 1fr
+            }
+
+            canvas {
+                height: 260px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Laboratorio de Canvas API</h1>
+        <p>Practica dibujando, creando caminos, reaccionando al teclado y animando figuras.</p>
+    </header>
+    <main>
+        <aside class="panel">
+            <h2>Ejercicios</h2>
+            <p class="muted">Selecciona un ejercicio. Lee el reto, modifica el código y pulsa «Ejecutar» para ver el
+                resultado.</p>
+            <div id="exerciseList"></div>
+            <div class="callout"><strong>Cómo practicar</strong>
+                <ol>
+                    <li>Lee el objetivo.</li>
+                    <li>Intenta modificar el código tú mismo.</li>
+                    <li>Pulsa Ejecutar.</li>
+                    <li>Si te atascas, usa «Mostrar pista».</li>
+                </ol>
+            </div>
+        </aside>
+        <section class="workspace">
+            <div class="panel">
+                <div class="topline">
+                    <div>
+                        <div class="muted" id="level">EJERCICIO 1</div>
+                        <h2 id="exerciseTitle">Dibuja un rectángulo</h2>
+                    </div>
+                    <div class="actions"><button class="action secondary" id="reset">Restaurar código</button><button
+                            class="action" id="run">Ejecutar ▶</button></div>
+                </div>
+                <p id="description"></p>
+                <div class="callout"><span class="task">Tu reto:</span> <span id="task"></span>
+                    <div class="hint"><button class="action secondary" id="hintBtn">Mostrar pista</button><span
+                            id="hint" class="muted"></span></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="topline">
+                    <h2>Tu lienzo (Canvas)</h2><span class="muted">300 × 200 unidades</span>
+                </div><canvas id="stage" width="600" height="400"></canvas>
+                <div id="status" class="status muted">Pulsa «Ejecutar» para representar el código.</div>
+            </div>
+            <div class="panel">
+                <div class="topline">
+                    <h2>Editor JavaScript</h2><span class="muted">Se ejecuta solo en este lienzo</span>
+                </div><textarea id="code" class="editor" spellcheck="false"></textarea>
+                <p class="muted">Puedes usar la variable <code>ctx</code> (contexto 2D), <code>canvas</code> (lienzo) y
+                    las funciones propias de Canvas API.</p>
+            </div>
+        </section>
+    </main>
+    <script>
+        const exercises = [
+            { title: "Un rectángulo relleno", desc: "Empezamos con la primitiva básica de Canvas: el rectángulo.", task: "Dibuja un rectángulo verde en la posición (40, 30), de 180 píxeles de ancho y 90 de alto.", hint: "Configura ctx.fillStyle y utiliza ctx.fillRect(x, y, ancho, alto).", code: `ctx.fillStyle = "green";\nctx.fillRect(40, 30, 180, 90);` },
+            { title: "Relleno y contorno", desc: "Un mismo lienzo puede combinar figuras y estilos.", task: "Dibuja un rectángulo azul relleno y otro rojo que muestre únicamente su contorno.", hint: "Combina fillRect() y strokeRect(). Para el contorno configura strokeStyle y lineWidth.", code: `ctx.fillStyle = "steelblue";\nctx.fillRect(35, 35, 150, 90);\n\nctx.strokeStyle = "red";\nctx.lineWidth = 5;\nctx.strokeRect(230, 55, 150, 90);` },
+            { title: "Borrar una zona", desc: "clearRect() elimina los píxeles de una región del lienzo.", task: "Dibuja un rectángulo grande y borra una zona rectangular en su interior.", hint: "Primero dibuja con fillRect(); después llama a clearRect() con las coordenadas de la zona que quieras borrar.", code: `ctx.fillStyle = "orange";\nctx.fillRect(40, 30, 300, 150);\nctx.clearRect(130, 75, 100, 65);` },
+            { title: "Construye un triángulo", desc: "Con los caminos puedes crear polígonos conectando puntos.", task: "Dibuja un triángulo relleno de color morado utilizando beginPath(), moveTo(), lineTo(), closePath() y fill().", hint: "Empieza en un vértice con moveTo(); añade dos vértices con lineTo() y cierra el camino.", code: `ctx.beginPath();\nctx.moveTo(180, 25);\nctx.lineTo(300, 170);\nctx.lineTo(60, 170);\nctx.closePath();\nctx.fillStyle = "purple";\nctx.fill();` },
+            { title: "Dos caminos separados", desc: "moveTo() permite levantar el lápiz y empezar otro tramo sin unirlo al anterior.", task: "Dibuja dos líneas independientes de distinto color.", hint: "Usa moveTo() antes de cada línea y lineTo() para marcar su final. Puedes iniciar otro camino con beginPath().", code: `ctx.beginPath();\nctx.moveTo(40, 55);\nctx.lineTo(250, 55);\nctx.strokeStyle = "crimson";\nctx.lineWidth = 6;\nctx.stroke();\n\nctx.beginPath();\nctx.moveTo(80, 120);\nctx.lineTo(330, 180);\nctx.strokeStyle = "teal";\nctx.lineWidth = 6;\nctx.stroke();` },
+            { title: "Dibuja una circunferencia", desc: "arc() crea arcos usando ángulos expresados en radianes.", task: "Dibuja un círculo azul relleno y otro naranja solo con contorno.", hint: "Una vuelta completa va de 0 a 2 * Math.PI. Usa fill() para rellenar y stroke() para el contorno.", code: `ctx.beginPath();\nctx.arc(140, 100, 55, 0, 2 * Math.PI);\nctx.fillStyle = "royalblue";\nctx.fill();\n\nctx.beginPath();\nctx.arc(300, 100, 55, 0, 2 * Math.PI);\nctx.strokeStyle = "darkorange";\nctx.lineWidth = 6;\nctx.stroke();` },
+            { title: "Reacciona al teclado", desc: "Los eventos permiten modificar el estado de un objeto cuando el usuario pulsa una tecla.", task: "Usa las flechas izquierda y derecha para mover el cuadrado. Pulsa «Ejecutar» y después usa el teclado.", hint: "Este ejercicio ya incluye una estructura funcional. Observa cómo cambia x y cómo se vuelve a dibujar el cuadrado.", code: `let x = 80;\nconst y = 85;\nconst size = 45;\n\nfunction draw() {\n  ctx.clearRect(0, 0, canvas.width, canvas.height);\n  ctx.fillStyle = "royalblue";\n  ctx.fillRect(x, y, size, size);\n}\n\ndraw();\n\nwindow.onkeydown = (event) => {\n  if (event.key === "ArrowRight") x += 10;\n  if (event.key === "ArrowLeft") x -= 10;\n  x = Math.max(0, Math.min(canvas.width - size, x));\n  draw();\n};` },
+            { title: "Animación con rebote", desc: "requestAnimationFrame() permite repetir un ciclo de dibujo sincronizado con la pantalla.", task: "Observa el cuadrado en movimiento. Cambia dx para modificar su velocidad y comprueba el rebote en los bordes.", hint: "La función anima() se vuelve a solicitar a sí misma. En cada ciclo se borra, se dibuja y se actualiza la posición.", code: `let x = 30;\nlet dx = 3;\nconst y = 75;\nconst size = 45;\n\nfunction anima() {\n  ctx.clearRect(0, 0, canvas.width, canvas.height);\n  ctx.fillStyle = "tomato";\n  ctx.fillRect(x, y, size, size);\n\n  x += dx;\n  if (x + size > canvas.width || x < 0) {\n    dx = -dx;\n  }\n\n  requestAnimationFrame(anima);\n}\nanima();` }
+        ];
+        const list = document.getElementById("exerciseList"), code = document.getElementById("code"), canvas = document.getElementById("stage"), ctx = canvas.getContext("2d");
+        let current = 0, animationId = null, keyHandler = null;
+        function stop() { if (animationId) cancelAnimationFrame(animationId); animationId = null; if (keyHandler) { window.removeEventListener("keydown", keyHandler); keyHandler = null; } window.onkeydown = null; }
+        function clear() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        function load(i) { stop(); current = i; const e = exercises[i]; document.getElementById("level").textContent = `EJERCICIO ${i + 1} DE ${exercises.length}`; document.getElementById("exerciseTitle").textContent = e.title; document.getElementById("description").textContent = e.desc; document.getElementById("task").textContent = e.task; document.getElementById("hint").textContent = ""; document.getElementById("hintBtn").textContent = "Mostrar pista"; code.value = e.code; document.getElementById("status").textContent = "Pulsa «Ejecutar» para representar el código."; document.getElementById("status").className = "status muted"; clear();[...list.children].forEach((b, j) => b.classList.toggle("active", j === i)); }
+        exercises.forEach((e, i) => { const b = document.createElement("button"); b.className = "exercise"; b.innerHTML = `<strong>${i + 1}. ${e.title}</strong><small>${["Rectángulos", "Rectángulos", "Rectángulos", "Caminos", "Caminos", "Curvas", "Interacción", "Animación"][i]}</small>`; b.onclick = () => load(i); list.appendChild(b); });
+        function run() { stop(); clear(); const status = document.getElementById("status"); try { const fn = new Function("ctx", "canvas", "requestAnimationFrame", code.value); fn(ctx, canvas, (cb) => { animationId = requestAnimationFrame(function tick() { cb(); }); }); status.textContent = "Código ejecutado. Prueba a modificarlo y vuelve a ejecutar."; status.className = "status ok"; } catch (err) { status.textContent = "Error: " + err.message; status.className = "status err"; } }
+        document.getElementById("run").onclick = run;
+        document.getElementById("reset").onclick = () => { load(current); run(); };
+        document.getElementById("hintBtn").onclick = () => { const h = document.getElementById("hint"); h.textContent = h.textContent ? "" : exercises[current].hint; document.getElementById("hintBtn").textContent = h.textContent ? "Ocultar pista" : "Mostrar pista"; };
+        load(0); run();
+    </script>
+</body>
+
+</html>

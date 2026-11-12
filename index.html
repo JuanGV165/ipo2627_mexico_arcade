@@ -26,8 +26,10 @@
                     </div>
                 </div>
                 
-                <!-- NUEVO BOTÓN DE PAUSA -->
-                <button id="btn-pause-hud" class="btn-small">⏸️ Pausa</button>
+                <button id="btn-pause-hud" class="btn-small" aria-label="Pausar juego">
+                    <span class="pause-icon" aria-hidden="true"></span>
+                    <span id="pause-button-label">Pausa</span>
+                </button>
             </header>
 
             <div id="wave-announcement" class="hidden">
@@ -37,6 +39,22 @@
             <section id="main-menu" class="menu-screen">
                 <h1>Operación Éxodo</h1>
                 <button id="btn-start" class="btn">Comenzar Juego</button>
+                <button id="btn-help" class="btn btn-secondary">Cómo jugar</button>
+            </section>
+
+            <section id="help-menu" class="menu-screen hidden" aria-labelledby="help-title">
+                <div class="help-panel">
+                    <h2 id="help-title">Cómo jugar</h2>
+                    <p>Sobrevive a las oleadas de enemigos y protege tu nave.</p>
+                    <ul>
+                        <li><strong>WASD</strong> o las <strong>flechas</strong>: mover la nave.</li>
+                        <li><strong>Barra espaciadora</strong>: disparar.</li>
+                        <li>Destruye enemigos para completar cada oleada y aumentar tu puntuación.</li>
+                        <li>Evita los disparos, enemigos y asteroides: si tu vida llega a cero, la partida termina.</li>
+                        <li>Pulsa <strong>P</strong> o <strong>Escape</strong> para pausar y reanudar.</li>
+                    </ul>
+                    <button id="btn-close-help" class="btn">Volver</button>
+                </div>
             </section>
 
             <section id="pause-menu" class="menu-screen hidden">

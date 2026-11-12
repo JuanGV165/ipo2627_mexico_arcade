@@ -65,7 +65,9 @@ export class Game {
             onStart: () => this.start(),
             onRestart: () => this.start(),
             onResume: () => this.togglePause(),
-            onTogglePause: () => this.togglePause() 
+            onTogglePause: () => this.togglePause(),
+            onOpenHelp: () => this.ui.toggleHelp(true),
+            onCloseHelp: () => this.ui.toggleHelp(false)
         });
     }
 
