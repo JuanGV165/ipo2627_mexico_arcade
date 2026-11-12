@@ -103,20 +103,29 @@ export class Game {
             this.wave++;
             this.waveKills = 0;
             this.enemiesSpawnedThisWave = 0;
-            // Multiplicador más suave (por cada oleada suman 2 naves más en total, no 3)
-            this.waveEnemiesTotal = 4 + (this.wave * 2);
+            
+            // CURVA DE OLEADAS SUAVIZADA (Primeras 10 oleadas muy progresivas para que duren más)
+            if (this.wave <= 10) {
+                this.waveEnemiesTotal = 4 + (this.wave * 1.5); // Sube muy despacio al principio
+            } else {
+                this.waveEnemiesTotal = 19 + ((this.wave - 10) * 2.5); // Retoma escala normal despues
+            }
+            this.waveEnemiesTotal = Math.floor(this.waveEnemiesTotal);
+            
             this.waveMessageTimer = 180;
             
             this.player.health = this.player.maxHealth;
-            this.asteroids = this.asteroids.filter(a => a.radius > 15);
-            if (this.asteroids.length < 25) {
-                this.spawnAsteroids(8); 
-            }
+            
+            this.asteroids = [];
+            this.spawnAsteroids(15); 
+            
+            this.squad.currentChoreo = 'SNAKE_COLUMN';
+            this.squad.activeTactic = 'SNAKE_COLUMN';
+            this.squad.choreoTimer = 600; 
         }
 
         this.player.update(this.input.keys, this.width, this.height, this.wave);
 
-        // Control de disparo general
         if (this.input.isPressed(' ')) {
             this.player.isShooting = true;
             if (this.player.cooldown === 0) {
@@ -134,20 +143,39 @@ export class Game {
             this.player.isShooting = false;
         }
 
-        // ESCALADO DE ENEMIGOS PROGRESIVO Y SUAVE
-        let maxActive = Math.min(4 + Math.floor((this.wave - 1) * 0.75), 12);
+        // Límite activo más suave en las primeras oleadas
+        let maxActive = Math.min(4 + Math.floor((this.wave - 1) * 0.5), 12);
 
         if (this.enemies.length < maxActive && this.enemiesSpawnedThisWave < this.waveEnemiesTotal && Math.random() < 0.05) {
-            this.enemies.push(new Enemy(this.enemyIdCounter++, this.squad.leader.x, this.squad.leader.y, this.squad.leader.angle, this.squad.currentChoreo));
+            let spawnX = this.squad.leader.x;
+            let spawnY = this.squad.leader.y;
+            
+            if (this.asteroids.length > 0) {
+                spawnX = this.asteroids[0].x;
+                spawnY = this.asteroids[0].y;
+            }
+
+            let newEnemy = new Enemy(this.enemyIdCounter++, spawnX, spawnY, this.squad.leader.angle, this.squad.currentChoreo);
+            newEnemy.invulnerableTimer = 120; 
+            newEnemy.cooldown = 120; 
+            
+            this.enemies.push(newEnemy);
             this.enemiesSpawnedThisWave++;
         }
 
         this.bullets.forEach(b => b.update(this.width, this.height));
         this.enemyBullets.forEach(b => b.update(this.width, this.height));
-        this.asteroids.forEach(a => a.update(this.width, this.height));
+        
+        this.asteroids.forEach(a => {
+            if (a.invulnerableTimer > 0) a.invulnerableTimer--;
+            a.update(this.width, this.height);
+        });
 
         this.bullets = this.bullets.filter(b => b.life > 0);
         this.enemyBullets = this.enemyBullets.filter(b => b.life > 0);
+
+        if (this.bullets.length > 150) this.bullets.splice(0, this.bullets.length - 150);
+        if (this.enemyBullets.length > 150) this.enemyBullets.splice(0, this.enemyBullets.length - 150);
 
         this.squad.update(this.player, this.enemies, this.bullets, this.asteroids, this.enemyBullets, this.wave);
         CollisionSystem.check(this);
@@ -155,10 +183,8 @@ export class Game {
 
     loop() {
         this.update();
-        if (this.state === 'PLAYING') {
-            this.renderer.render(this);
-        }
+        this.renderer.render(this);
         this.ui.renderHUD(this);
-        requestAnimationFrame(() => this.loop());
+        this.animationId = requestAnimationFrame(() => this.loop());
     }
 }
