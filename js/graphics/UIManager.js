@@ -3,12 +3,14 @@ export class UIManager {
         this.ui = elements;
     }
 
-    bindButtons({ onStart, onRestart, onResume, onTogglePause }) {
-        // Al haber quitado el modo aliados, aquí solo buscamos los 4 botones clásicos
+    bindButtons({ onStart, onRestart, onResume, onTogglePause, onOpenHelp, onCloseHelp }) {
+        // Mantenemos la lógica de un solo modo (main) e integramos los nuevos botones de ayuda (baiyang)
         document.getElementById('btn-start').addEventListener('click', onStart);
         document.getElementById('btn-restart').addEventListener('click', onRestart);
         document.getElementById('btn-resume').addEventListener('click', onResume);
         document.getElementById('btn-pause-hud').addEventListener('click', onTogglePause);
+        document.getElementById('btn-help').addEventListener('click', onOpenHelp);
+        document.getElementById('btn-close-help').addEventListener('click', onCloseHelp);
     }
 
     setFinalScore(score) {
@@ -17,13 +19,27 @@ export class UIManager {
 
     updateVisibility(state) {
         this.ui.mainMenu.classList.toggle('hidden', state !== 'MENU');
+        this.ui.helpMenu.classList.add('hidden');
         this.ui.pauseMenu.classList.toggle('hidden', state !== 'PAUSED');
         this.ui.gameOver.classList.toggle('hidden', state !== 'GAMEOVER');
         
-        if (state === 'PLAYING' || state === 'PAUSED') this.ui.hud.classList.remove('hidden');
-        else this.ui.hud.classList.add('hidden');
+        const isPaused = state === 'PAUSED';
+        this.ui.pauseButton.classList.toggle('is-paused', isPaused);
+        this.ui.pauseButtonLabel.textContent = isPaused ? 'Reanudar' : 'Pausa';
+        this.ui.pauseButton.setAttribute('aria-label', isPaused ? 'Reanudar juego' : 'Pausar juego');
+        
+        if (state === 'PLAYING' || state === 'PAUSED') {
+            this.ui.hud.classList.remove('hidden');
+        } else {
+            this.ui.hud.classList.add('hidden');
+        }
         
         if (state !== 'PLAYING') this.ui.waveAnnouncement.classList.add('hidden');
+    }
+
+    toggleHelp(isVisible) {
+        this.ui.mainMenu.classList.toggle('hidden', isVisible);
+        this.ui.helpMenu.classList.toggle('hidden', !isVisible);
     }
 
     renderHUD(game) {
