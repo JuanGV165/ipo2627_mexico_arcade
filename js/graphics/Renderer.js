@@ -104,7 +104,7 @@ export class Renderer {
             
             // EFECTO DE ESCUDO INVULNERABLE
             if (a.invulnerableTimer > 0) {
-                this.ctx.strokeStyle = `rgba(255, 153, 0, ${0.5 + Math.abs(Math.sin(Date.now()*0.01))*0.5})`; // Brillo naranja
+                this.ctx.strokeStyle = `hsla(36, 100%, 50%, ${0.5 + Math.abs(Math.sin(Date.now()*0.01))*0.5})`; // Brillo naranja
                 this.ctx.fillStyle = '#201000';
             } else {
                 this.ctx.strokeStyle = '#a0a0b0';

@@ -4,7 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
     const uiElements = {
         mainMenu: document.getElementById('main-menu'),
+        helpMenu: document.getElementById('help-menu'),
         pauseMenu: document.getElementById('pause-menu'),
+        pauseButton: document.getElementById('btn-pause-hud'),
+        pauseButtonLabel: document.getElementById('pause-button-label'),
         gameOver: document.getElementById('game-over'),
         hud: document.getElementById('hud'),
         score: document.getElementById('score'),
