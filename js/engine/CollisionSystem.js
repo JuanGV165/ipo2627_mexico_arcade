@@ -18,11 +18,11 @@ export class CollisionSystem {
                 let rSq = (game.player.radius + a.radius) * (game.player.radius + a.radius);
                 
                 if (this.getSqDist(game.player.x, game.player.y, a.x, a.y, mw, mh) < rSq) {
-                    game.damagePlayer(8, null); // Ahora es solo un rasguño ligero
+                    game.damagePlayer(game.getDifficultySettings().asteroidDamage, null);
                     
                     if (a.radius > 20) {
-                        let a1 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1), a.vy + (Math.random()*2 - 1), a.radius * 0.6);
-                        let a2 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1), a.vy + (Math.random()*2 - 1), a.radius * 0.6);
+                        let a1 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1) * a.speedMultiplier, a.vy + (Math.random()*2 - 1) * a.speedMultiplier, a.radius * 0.6, a.speedMultiplier);
+                        let a2 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1) * a.speedMultiplier, a.vy + (Math.random()*2 - 1) * a.speedMultiplier, a.radius * 0.6, a.speedMultiplier);
                         a1.invulnerableTimer = 90;
                         a2.invulnerableTimer = 90;
                         game.asteroids.push(a1, a2);
@@ -66,8 +66,8 @@ export class CollisionSystem {
                     
                     if (!(a.invulnerableTimer > 0)) {
                         if (a.radius > 20) {
-                            let a1 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1), a.vy + (Math.random()*2 - 1), a.radius * 0.6);
-                            let a2 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1), a.vy + (Math.random()*2 - 1), a.radius * 0.6);
+                            let a1 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1) * a.speedMultiplier, a.vy + (Math.random()*2 - 1) * a.speedMultiplier, a.radius * 0.6, a.speedMultiplier);
+                            let a2 = new a.constructor(a.x, a.y, a.vx + (Math.random()*2 - 1) * a.speedMultiplier, a.vy + (Math.random()*2 - 1) * a.speedMultiplier, a.radius * 0.6, a.speedMultiplier);
                             a1.invulnerableTimer = 90;
                             a2.invulnerableTimer = 90;
                             game.asteroids.push(a1, a2);

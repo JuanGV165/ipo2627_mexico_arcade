@@ -1,9 +1,10 @@
 export class Asteroid {
-    constructor(x, y, vx, vy, radius) {
+    constructor(x, y, vx, vy, radius, speedMultiplier = 1) {
         this.x = x;
         this.y = y;
         this.vx = vx;
         this.vy = vy;
+        this.speedMultiplier = speedMultiplier;
         this.radius = radius;
         this.angle = 0;
         this.rotSpeed = (Math.random() - 0.5) * 0.02;
@@ -30,8 +31,8 @@ export class Asteroid {
 
     split() {
         return [
-            new Asteroid(this.x, this.y, this.vx + (Math.random() - 0.5) * 3, this.vy + (Math.random() - 0.5) * 3, 12),
-            new Asteroid(this.x, this.y, this.vx + (Math.random() - 0.5) * 3, this.vy + (Math.random() - 0.5) * 3, 12)
+            new Asteroid(this.x, this.y, this.vx + (Math.random() - 0.5) * 3 * this.speedMultiplier, this.vy + (Math.random() - 0.5) * 3 * this.speedMultiplier, 12, this.speedMultiplier),
+            new Asteroid(this.x, this.y, this.vx + (Math.random() - 0.5) * 3 * this.speedMultiplier, this.vy + (Math.random() - 0.5) * 3 * this.speedMultiplier, 12, this.speedMultiplier)
         ];
     }
 }

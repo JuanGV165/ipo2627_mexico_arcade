@@ -1,5 +1,5 @@
 export class Player {
-    constructor(x, y) {
+    constructor(x, y, settings = {}) {
         this.x = x;
         this.y = y;
         this.vx = 0;
@@ -12,6 +12,7 @@ export class Player {
         this.invulnerableFrames = 0;
         
         this.healDelay = 0;
+        this.healRate = settings.healRate || 0.03;
         this.spinAccumulator = 0;
         this.lastAngle = this.angle;
         this.isShooting = false;
@@ -50,7 +51,7 @@ export class Player {
         if (this.healDelay > 0) {
             this.healDelay--;
         } else if (this.health > 0 && this.health < this.maxHealth) {
-            this.health = Math.min(this.maxHealth, this.health + 0.03); 
+            this.health = Math.min(this.maxHealth, this.health + this.healRate);
         }
 
         if (this.invulnerableFrames > 0) this.invulnerableFrames--;

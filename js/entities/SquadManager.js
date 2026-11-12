@@ -4,6 +4,7 @@ export class SquadManager {
     constructor(mapWidth, mapHeight) {
         this.mw = mapWidth;
         this.mh = mapHeight;
+        this.speedMultiplier = 1;
         this.leader = { x: mapWidth - 200, y: 200, angle: 0, speed: 2.0 };
         this.tacticalMemory = {
             'DYNAMIC_V': 20, 'SNAKE_COLUMN': 10, 'PINCER_SQUAD': 10
@@ -102,7 +103,7 @@ export class SquadManager {
         let targetAngle = Math.atan2(dy, dx);
         if (this.isAntiCharge) {
             targetAngle += Math.PI / 1.5; 
-            this.leader.speed += (1.5 - this.leader.speed) * 0.05; 
+            this.leader.speed += (1.5 * this.speedMultiplier - this.leader.speed) * 0.05;
         } else if (phase === 'SETUP') {
             if (distToPlayer > 400) targetAngle += 0.3; 
             else if (distToPlayer < 250) targetAngle += 2.5; 
@@ -118,9 +119,10 @@ export class SquadManager {
         this.leader.angle += diffAngle * 0.025; // Giro de líder muy suave y cinematográfico
 
         if (!this.isAntiCharge) {
-            this.leader.speed += ((phase === 'SETUP' ? 1.8 : 2.5 + (wave * 0.05)) - this.leader.speed) * 0.05;
+            const targetLeaderSpeed = (phase === 'SETUP' ? 1.8 : 2.5 + (wave * 0.05)) * this.speedMultiplier;
+            this.leader.speed += (targetLeaderSpeed - this.leader.speed) * 0.05;
         }
-        this.leader.speed = Math.max(2.0, this.leader.speed); 
+        this.leader.speed = Math.max(2.0 * this.speedMultiplier, this.leader.speed);
 
         this.leader.x += Math.cos(this.leader.angle) * this.leader.speed;
         this.leader.y += Math.sin(this.leader.angle) * this.leader.speed;
@@ -274,7 +276,7 @@ export class SquadManager {
                 let eAngle = Math.atan2(indEvadeY, indEvadeX);
                 let eDiff = eAngle - enemy.angle;
                 enemy.angle += Math.atan2(Math.sin(eDiff), Math.cos(eDiff)) * 0.06; 
-                enemy.speed = 3.8; 
+                enemy.speed = 3.8 * this.speedMultiplier;
             } else {
                 let distToSlot = Math.hypot(edx, edy);
                 let eAngle = Math.atan2(edy, edx); 
@@ -288,8 +290,9 @@ export class SquadManager {
                 
                 let eTargetSpeed = overrideSpeed !== null ? overrideSpeed : (distToSlot > 30 ? Math.min(4.0, distToSlot * 0.08) : this.leader.speed);
                 if (phase === 'STRIKE' && index === 0 && overrideSpeed === null) eTargetSpeed = wave <= 5 ? 2.5 : 3.2 + (wave * 0.1);
+                eTargetSpeed *= this.speedMultiplier;
                 
-                eTargetSpeed = Math.max(2.0, eTargetSpeed);
+                eTargetSpeed = Math.max(2.0 * this.speedMultiplier, eTargetSpeed);
                 enemy.speed += (eTargetSpeed - enemy.speed) * 0.04; // Inercia ultra suave
             }
 

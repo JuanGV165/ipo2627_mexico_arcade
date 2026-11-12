@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainMenu: document.getElementById('main-menu'),
         helpMenu: document.getElementById('help-menu'),
         pauseMenu: document.getElementById('pause-menu'),
+        mainMenuDialog: document.getElementById('main-menu-dialog'),
         pauseButton: document.getElementById('btn-pause-hud'),
         pauseButtonLabel: document.getElementById('pause-button-label'),
         gameOver: document.getElementById('game-over'),

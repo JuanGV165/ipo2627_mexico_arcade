@@ -13,11 +13,18 @@ export class Game {
         this.width = 2400;
         this.height = 1600;
         this.canvas = canvas;
+        this.difficulty = 'normal';
+        this.difficultySettings = {
+            easy: { speedMultiplier: 0.7, healRate: 0.03, asteroidDamage: 8 },
+            normal: { speedMultiplier: 1, healRate: 0.03, asteroidDamage: 8 },
+            hard: { speedMultiplier: 1, healRate: 0.015, asteroidDamage: 14 }
+        };
         
         this.input = new InputHandler();
         this.ui = new UIManager(uiElements);
         this.renderer = new Renderer(canvas);
         this.squad = new SquadManager(this.width, this.height);
+        this.squad.speedMultiplier = this.getDifficultySettings().speedMultiplier;
 
         this.bindEvents();
         this.reset();
@@ -35,7 +42,7 @@ export class Game {
         this.waveMessageTimer = 180;
         this.enemyIdCounter = 0;
 
-        this.player = new Player(this.width / 2, this.height / 2);
+        this.player = new Player(this.width / 2, this.height / 2, this.getDifficultySettings());
         this.bullets = [];
         this.enemyBullets = [];
         this.enemies = [];
@@ -45,15 +52,21 @@ export class Game {
     }
 
     spawnAsteroids(count) {
+        const speedMultiplier = this.getDifficultySettings().speedMultiplier;
         for (let i = 0; i < count; i++) {
             this.asteroids.push(new Asteroid(
                 Math.random() * this.width, 
                 Math.random() * this.height, 
-                (Math.random() - 0.5) * 2, 
-                (Math.random() - 0.5) * 2, 
-                30 + Math.random() * 20
+                (Math.random() - 0.5) * 2 * speedMultiplier,
+                (Math.random() - 0.5) * 2 * speedMultiplier,
+                30 + Math.random() * 20,
+                speedMultiplier
             ));
         }
+    }
+
+    getDifficultySettings() {
+        return this.difficultySettings[this.difficulty];
     }
 
     bindEvents() {
@@ -62,16 +75,20 @@ export class Game {
         });
         
         this.ui.bindButtons({
-            onStart: () => this.start(),
-            onRestart: () => this.start(),
+            onStart: () => this.start(this.ui.getDifficulty()),
+            onRestart: () => this.start(this.difficulty),
             onResume: () => this.togglePause(),
+            onMainMenu: () => this.ui.showMainMenuConfirmation(),
+            onConfirmMainMenu: () => this.returnToMainMenu(),
             onTogglePause: () => this.togglePause(),
             onOpenHelp: () => this.ui.toggleHelp(true),
             onCloseHelp: () => this.ui.toggleHelp(false)
         });
     }
 
-    start() {
+    start(difficulty) {
+        this.difficulty = difficulty || 'normal';
+        this.squad.speedMultiplier = this.getDifficultySettings().speedMultiplier;
         this.reset();
         this.state = 'PLAYING';
         this.ui.updateVisibility(this.state);
@@ -80,6 +97,11 @@ export class Game {
     togglePause() {
         if (this.state === 'PLAYING') this.state = 'PAUSED';
         else if (this.state === 'PAUSED') this.state = 'PLAYING';
+        this.ui.updateVisibility(this.state);
+    }
+
+    returnToMainMenu() {
+        this.reset();
         this.ui.updateVisibility(this.state);
     }
 

@@ -3,11 +3,19 @@ export class UIManager {
         this.ui = elements;
     }
 
-    bindButtons({ onStart, onRestart, onResume, onTogglePause, onOpenHelp, onCloseHelp }) {
+    bindButtons({ onStart, onRestart, onResume, onMainMenu, onConfirmMainMenu, onTogglePause, onOpenHelp, onCloseHelp }) {
         // Mantenemos la lógica de un solo modo (main) e integramos los nuevos botones de ayuda (baiyang)
         document.getElementById('btn-start').addEventListener('click', onStart);
         document.getElementById('btn-restart').addEventListener('click', onRestart);
         document.getElementById('btn-resume').addEventListener('click', onResume);
+        document.getElementById('btn-main-menu').addEventListener('click', onMainMenu);
+        document.getElementById('btn-cancel-main-menu').addEventListener('click', () => {
+            this.ui.mainMenuDialog.close();
+        });
+        document.getElementById('btn-confirm-main-menu').addEventListener('click', () => {
+            onConfirmMainMenu();
+            this.ui.mainMenuDialog.close();
+        });
         document.getElementById('btn-pause-hud').addEventListener('click', onTogglePause);
         document.getElementById('btn-help').addEventListener('click', onOpenHelp);
         document.getElementById('btn-close-help').addEventListener('click', onCloseHelp);
@@ -15,6 +23,14 @@ export class UIManager {
 
     setFinalScore(score) {
         document.getElementById('final-score').textContent = score;
+    }
+
+    getDifficulty() {
+        return document.querySelector('input[name="difficulty"]:checked').value;
+    }
+
+    showMainMenuConfirmation() {
+        this.ui.mainMenuDialog.showModal();
     }
 
     updateVisibility(state) {

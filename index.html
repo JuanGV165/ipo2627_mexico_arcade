@@ -38,6 +38,17 @@
 
             <section id="main-menu" class="menu-screen">
                 <h1>Operación Éxodo</h1>
+                <fieldset class="difficulty-control">
+                    <legend>Nivel de dificultad</legend>
+                    <div class="difficulty-options">
+                        <input class="difficulty-option" type="radio" id="difficulty-easy" name="difficulty" value="easy">
+                        <label for="difficulty-easy">Fácil</label>
+                        <input class="difficulty-option" type="radio" id="difficulty-normal" name="difficulty" value="normal" checked>
+                        <label for="difficulty-normal">Normal</label>
+                        <input class="difficulty-option" type="radio" id="difficulty-hard" name="difficulty" value="hard">
+                        <label for="difficulty-hard">Difícil</label>
+                    </div>
+                </fieldset>
                 <button id="btn-start" class="btn">Comenzar Juego</button>
                 <button id="btn-help" class="btn btn-secondary">Cómo jugar</button>
             </section>
@@ -60,6 +71,7 @@
             <section id="pause-menu" class="menu-screen hidden">
                 <h2>Juego Pausado</h2>
                 <button id="btn-resume" class="btn">Reanudar</button>
+                <button id="btn-main-menu" class="btn btn-secondary">Pantalla inicial</button>
             </section>
 
             <section id="game-over" class="menu-screen hidden">
@@ -67,6 +79,17 @@
                 <p>Puntuación final: <span id="final-score">0</span></p>
                 <button id="btn-restart" class="btn">Volver a Jugar</button>
             </section>
+
+            <dialog id="main-menu-dialog" aria-labelledby="main-menu-dialog-title">
+                <form method="dialog" class="dialog-content">
+                    <h2 id="main-menu-dialog-title">¿Volver a la pantalla inicial?</h2>
+                    <p>La partida actual se perderá.</p>
+                    <div class="dialog-actions">
+                        <button id="btn-cancel-main-menu" class="btn btn-secondary" value="cancel">Cancelar</button>
+                        <button id="btn-confirm-main-menu" class="btn" value="confirm">Confirmar</button>
+                    </div>
+                </form>
+            </dialog>
         </div>
     </main>
     
