@@ -3,17 +3,17 @@ export class Renderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.stars = Array.from({ length: 150 }, () => ({
-            x: Math.random() * canvas.width * 2,
-            y: Math.random() * canvas.height * 2,
+            x: Math.random() * 2400,
+            y: Math.random() * 1600,
             size: Math.random() * 2, 
             alpha: Math.random() * 0.8 + 0.2
         }));
     }
 
-    getScreenPos(entityX, entityY, playerX, playerY, mw, mh) {
-        let dx = entityX - playerX;
+    getScreenPos(entityX, entityY, camX, camY, mw, mh) {
+        let dx = entityX - camX;
         if (dx > mw / 2) dx -= mw; else if (dx < -mw / 2) dx += mw;
-        let dy = entityY - playerY;
+        let dy = entityY - camY;
         if (dy > mh / 2) dy -= mh; else if (dy < -mh / 2) dy += mh;
         return { x: (this.canvas.width / 2) + dx, y: (this.canvas.height / 2) + dy };
     }
@@ -22,34 +22,77 @@ export class Renderer {
         const cw = this.canvas.width, ch = this.canvas.height;
         const p = game.player;
         const mw = game.width, mh = game.height;
+        const isSandbox = game.state === 'SANDBOX';
+        
+        // En Sandbox el mapa es de 1200x800 (tamaño de la ventana).
+        // La cámara siempre está fija en el centro (600, 400) para ver todo sin zoom.
+        const fixedCamera = isSandbox; 
+        const camX = fixedCamera ? mw / 2 : p.x;
+        const camY = fixedCamera ? mh / 2 : p.y;
 
         this.ctx.fillStyle = '#050510';
         this.ctx.fillRect(0, 0, cw, ch);
+        this.ctx.save(); 
 
         this.ctx.fillStyle = '#ffffff';
+        let starMargin = 5;
         for (let i = 0; i < this.stars.length; i++) {
             let s = this.stars[i];
-            let pos = this.getScreenPos(s.x, s.y, p.x, p.y, mw, mh);
-            if (pos.x >= -5 && pos.x <= cw+5 && pos.y >= -5 && pos.y <= ch+5) {
+            // Asegurar que las estrellas no se salgan del mapa en modo normal
+            let sx = s.x % mw; let sy = s.y % mh; 
+            let pos = this.getScreenPos(sx, sy, camX, camY, mw, mh);
+            if (pos.x >= -starMargin && pos.x <= cw+starMargin && pos.y >= -starMargin && pos.y <= ch+starMargin) {
                 this.ctx.globalAlpha = s.alpha;
                 this.ctx.fillRect(pos.x, pos.y, s.size, s.size);
             }
         }
         this.ctx.globalAlpha = 1.0;
 
-        if (game.state === 'PLAYING') {
-            this.drawAsteroids(game.asteroids, p, mw, mh);
-            this.drawEnemies(game.enemies, p, mw, mh);
-            this.drawPlayerWaves(game.bullets, p, mw, mh);
-            this.drawEnemyBullets(game.enemyBullets, p, mw, mh);
-            this.drawPlayerCentered(p, cw, ch);
+        if (game.state === 'PLAYING' || isSandbox) {
+            this.drawAsteroids(game.asteroids, camX, camY, mw, mh, fixedCamera);
+            this.drawEnemies(game.enemies, camX, camY, mw, mh, fixedCamera);
+            this.drawPlayerWaves(game.bullets, camX, camY, mw, mh, fixedCamera);
+            this.drawEnemyBullets(game.enemyBullets, camX, camY, mw, mh, fixedCamera);
+            
+            // Dibuja al jugador solo si está activo
+            if (game.sandboxPlayerActive) {
+                let pPos = this.getScreenPos(p.x, p.y, camX, camY, mw, mh);
+                this.drawPlayerCentered(p, pPos.x, pPos.y);
+            }
+            
+            this.ctx.restore(); 
+            
+            if (game.input.touch.joystickActive && game.sandboxPlayerActive) {
+                this.ctx.save();
+                const jx = game.input.touch.joystickOrigin.x;
+                const jy = game.input.touch.joystickOrigin.y;
+                const cx = game.input.touch.joystickCurrent.x;
+                const cy = game.input.touch.joystickCurrent.y;
+                
+                this.ctx.strokeStyle = 'rgba(0, 243, 255, 0.4)';
+                this.ctx.fillStyle = 'rgba(0, 243, 255, 0.15)';
+                this.ctx.lineWidth = 3;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(jx, jy, 60, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                this.ctx.beginPath();
+                this.ctx.arc(cx, cy, 25, 0, Math.PI * 2);
+                this.ctx.fillStyle = 'rgba(0, 243, 255, 0.7)';
+                this.ctx.fill();
+                this.ctx.restore();
+            }
+        } else {
+            this.ctx.restore(); 
         }
     }
 
-    drawPlayerCentered(p, cw, ch) {
+    drawPlayerCentered(p, scrX, scrY) {
         if (p.invulnerableFrames > 0 && Math.floor(p.invulnerableFrames / 6) % 2 === 0) return;
         this.ctx.save();
-        this.ctx.translate(cw / 2, ch / 2); 
+        this.ctx.translate(scrX, scrY); 
         this.ctx.rotate(p.angle);
         this.ctx.scale(0.5, 0.5);
         
@@ -71,12 +114,13 @@ export class Renderer {
         this.ctx.restore();
     }
 
-    drawEnemies(enemies, p, mw, mh) {
+    drawEnemies(enemies, camX, camY, mw, mh, fixedCamera) {
+        let margin = 30; 
         this.ctx.fillStyle = '#ff3366';
         for (let i = 0; i < enemies.length; i++) {
             let e = enemies[i];
-            let pos = this.getScreenPos(e.x, e.y, p.x, p.y, mw, mh);
-            if (pos.x < -30 || pos.x > this.canvas.width+30 || pos.y < -30 || pos.y > this.canvas.height+30) continue;
+            let pos = this.getScreenPos(e.x, e.y, camX, camY, mw, mh);
+            if (pos.x < -margin || pos.x > this.canvas.width+margin || pos.y < -margin || pos.y > this.canvas.height+margin) continue;
 
             this.ctx.save();
             this.ctx.translate(pos.x, pos.y);
@@ -90,21 +134,21 @@ export class Renderer {
         }
     }
 
-    drawAsteroids(asteroids, p, mw, mh) {
+    drawAsteroids(asteroids, camX, camY, mw, mh, fixedCamera) {
+        let margin = 60;
         this.ctx.lineWidth = 1.5;
         for (let k = 0; k < asteroids.length; k++) {
             let a = asteroids[k];
-            let pos = this.getScreenPos(a.x, a.y, p.x, p.y, mw, mh);
-            if (pos.x < -60 || pos.x > this.canvas.width+60 || pos.y < -60 || pos.y > this.canvas.height+60) continue;
+            let pos = this.getScreenPos(a.x, a.y, camX, camY, mw, mh);
+            if (pos.x < -margin || pos.x > this.canvas.width+margin || pos.y < -margin || pos.y > this.canvas.height+margin) continue;
 
             this.ctx.save();
             this.ctx.translate(pos.x, pos.y);
             this.ctx.rotate(a.angle);
             this.ctx.beginPath();
             
-            // EFECTO DE ESCUDO INVULNERABLE
             if (a.invulnerableTimer > 0) {
-                this.ctx.strokeStyle = `hsla(36, 100%, 50%, ${0.5 + Math.abs(Math.sin(Date.now()*0.01))*0.5})`; // Brillo naranja
+                this.ctx.strokeStyle = `hsla(36, 100%, 50%, ${0.5 + Math.abs(Math.sin(Date.now()*0.01))*0.5})`; 
                 this.ctx.fillStyle = '#201000';
             } else {
                 this.ctx.strokeStyle = '#a0a0b0';
@@ -124,12 +168,14 @@ export class Renderer {
         }
     }
 
-    drawPlayerWaves(bullets, p, mw, mh) {
+    drawPlayerWaves(bullets, camX, camY, mw, mh, fixedCamera) {
+        let margin = 30;
         this.ctx.strokeStyle = '#00f3ff';
         this.ctx.lineWidth = 3;
         for (let i = 0; i < bullets.length; i++) {
             let b = bullets[i];
-            let pos = this.getScreenPos(b.x, b.y, p.x, p.y, mw, mh);
+            let pos = this.getScreenPos(b.x, b.y, camX, camY, mw, mh);
+            if (pos.x < -margin || pos.x > this.canvas.width+margin || pos.y < -margin || pos.y > this.canvas.height+margin) continue;
             
             this.ctx.save();
             this.ctx.translate(pos.x, pos.y);
@@ -143,11 +189,14 @@ export class Renderer {
         }
     }
 
-    drawEnemyBullets(bullets, p, mw, mh) {
+    drawEnemyBullets(bullets, camX, camY, mw, mh, fixedCamera) {
+        let margin = 30;
         this.ctx.fillStyle = '#ff3366';
         for (let i = 0; i < bullets.length; i++) {
             let b = bullets[i];
-            let pos = this.getScreenPos(b.x, b.y, p.x, p.y, mw, mh);
+            let pos = this.getScreenPos(b.x, b.y, camX, camY, mw, mh);
+            if (pos.x < -margin || pos.x > this.canvas.width+margin || pos.y < -margin || pos.y > this.canvas.height+margin) continue;
+
             this.ctx.beginPath();
             this.ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
             this.ctx.fill();

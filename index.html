@@ -2,11 +2,19 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Matamarcianos Arcade - IA Táctica</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- AVISO DE ROTACIÓN FORZADA (Solo visible en vertical) -->
+    <div id="portrait-warning">
+        <h2>⚠️ Gira el móvil</h2>
+        <p>Este juego está diseñado para jugarse en formato horizontal.</p>
+    </div>
+
+    <button id="btn-fullscreen" class="btn-small" aria-label="Pantalla completa">[ ]</button>
+
     <main id="game-container">
         <canvas id="gameCanvas" width="1200" height="800"></canvas>
         
@@ -15,26 +23,18 @@
                 <div class="hud-item">Puntos: <span id="score">0</span></div>
                 <div class="hud-item">Bajas: <span id="kills">0</span> / <span id="wave-target">0</span></div>
                 <div class="hud-item">Oleada: <span id="wave">1</span></div>
-                <div class="hud-item">
-                    <span id="choreo-name">ESCUADRÓN</span>
-                </div>
                 
                 <div class="hud-item health-container">
                     Vida:
-                    <div class="health-bar-bg">
-                        <div id="health-fill" class="health-bar-fill"></div>
-                    </div>
+                    <div class="health-bar-bg"><div id="health-fill" class="health-bar-fill"></div></div>
                 </div>
-                
-                <button id="btn-pause-hud" class="btn-small" aria-label="Pausar juego">
-                    <span class="pause-icon" aria-hidden="true"></span>
-                    <span id="pause-button-label">Pausa</span>
+                <!-- Botón de pausa solo con icono -->
+                <button id="btn-pause-hud" class="btn-small" aria-label="Pausar juego" style="width: 40px; padding: 5px;">
+                    <span class="pause-icon" aria-hidden="true" style="margin: 0;"></span>
                 </button>
             </header>
 
-            <div id="wave-announcement" class="hidden">
-                <h2 id="wave-text">¡OLEADA 1!</h2>
-            </div>
+            <div id="wave-announcement" class="hidden"><h2 id="wave-text">¡OLEADA 1!</h2></div>
 
             <section id="main-menu" class="menu-screen">
                 <h1>Operación Éxodo</h1>
@@ -53,16 +53,14 @@
                 <button id="btn-help" class="btn btn-secondary">Cómo jugar</button>
             </section>
 
-            <section id="help-menu" class="menu-screen hidden" aria-labelledby="help-title">
+            <section id="help-menu" class="menu-screen hidden">
                 <div class="help-panel">
-                    <h2 id="help-title">Cómo jugar</h2>
+                    <h2>Cómo jugar</h2>
                     <p>Sobrevive a las oleadas de enemigos y protege tu nave.</p>
                     <ul>
                         <li><strong>WASD</strong> o las <strong>flechas</strong>: mover la nave.</li>
-                        <li><strong>Barra espaciadora</strong>: disparar.</li>
-                        <li>Destruye enemigos para completar cada oleada y aumentar tu puntuación.</li>
-                        <li>Evita los disparos, enemigos y asteroides: si tu vida llega a cero, la partida termina.</li>
-                        <li>Pulsa <strong>P</strong> o <strong>Escape</strong> para pausar y reanudar.</li>
+                        <li><strong>Espacio</strong> / <strong>Táctil</strong>: disparar y mover.</li>
+                        <li>Pulsa el botón de <strong>Pausa</strong> arriba a la derecha.</li>
                     </ul>
                     <button id="btn-close-help" class="btn">Volver</button>
                 </div>
@@ -80,9 +78,9 @@
                 <button id="btn-restart" class="btn">Volver a Jugar</button>
             </section>
 
-            <dialog id="main-menu-dialog" aria-labelledby="main-menu-dialog-title">
+            <dialog id="main-menu-dialog">
                 <form method="dialog" class="dialog-content">
-                    <h2 id="main-menu-dialog-title">¿Volver a la pantalla inicial?</h2>
+                    <h2>¿Volver al inicio?</h2>
                     <p>La partida actual se perderá.</p>
                     <div class="dialog-actions">
                         <button id="btn-cancel-main-menu" class="btn btn-secondary" value="cancel">Cancelar</button>
@@ -90,9 +88,26 @@
                     </div>
                 </form>
             </dialog>
+
+            <!-- MENÚ EASTER EGG (SANDBOX) DESPLAZADO A LA DERECHA -->
+            <section id="sandbox-menu" class="menu-screen hidden" style="background: transparent; pointer-events: none; align-items: flex-start;">
+                <div class="sandbox-container">
+                    <select id="sandbox-formation" class="btn-small">
+                        <option value="DYNAMIC_V">DYNAMIC V</option>
+                        <option value="V_QUINTET">V QUINTET</option>
+                        <option value="SNAKE_COLUMN">SNAKE COLUMN</option>
+                        <option value="RING_FIVE">RING FIVE</option>
+                        <option value="PINCER_SQUAD">PINCER SQUAD</option>
+                        <option value="ANTI_TURRETS">ANTI TURRETS</option>
+                    </select>
+                    <button id="btn-sandbox-auto" class="btn-small">AUTO: OFF</button>
+                    <button id="btn-sandbox-player" class="btn-small">NAVE: ON</button>
+                    <button id="btn-sandbox-asteroids" class="btn-small">ROCAS: OFF</button>
+                    <button id="btn-close-sandbox" class="btn-small btn-sandbox-exit">SALIR (X)</button>
+                </div>
+            </section>
         </div>
     </main>
-    
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
