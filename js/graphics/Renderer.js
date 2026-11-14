@@ -35,7 +35,7 @@ export class Renderer {
         const mw = game.width, mh = game.height;
         const isSandbox = game.state === 'SANDBOX';
         
-        const fixedCamera = isSandbox; 
+        const fixedCamera = isSandbox || game.state === 'MENU'; 
         const camX = fixedCamera ? mw / 2 : p.x;
         const camY = fixedCamera ? mh / 2 : p.y;
 
@@ -62,6 +62,14 @@ export class Renderer {
             }
         }
         this.ctx.globalAlpha = 1.0;
+
+        if (game.state === 'MENU') {
+            this.ctx.restore();
+            if (game.menuFleet) {
+                this.drawMenuFleet(game.menuFleet);
+            }
+            return;
+        }
 
         if (game.state === 'PLAYING' || game.state === 'PAUSED' || isSandbox) {
             this.drawAsteroids(game.asteroids, camX, camY, mw, mh, fixedCamera, zoom);
@@ -101,6 +109,54 @@ export class Renderer {
         } else {
             this.ctx.restore(); 
         }
+    }
+
+    drawMenuFleet(fleet) {
+        this.ctx.save();
+        if ('filter' in this.ctx) {
+            this.ctx.filter = 'blur(2.5px)';
+        }
+        this.ctx.globalAlpha = 0.64;
+        this.ctx.fillStyle = '#e62e5c';
+
+        const cosA = Math.cos(fleet.angle);
+        const sinA = Math.sin(fleet.angle);
+
+        for (let i = 0; i < fleet.ships.length; i++) {
+            const ship = fleet.ships[i];
+            const waveOffsetY = ship.amp > 0
+                ? Math.sin(fleet.traveled * ship.freq + ship.phase) * ship.amp
+                : 0;
+            const localX = ship.localX;
+            const localY = ship.localY + waveOffsetY;
+
+            const sx = fleet.x + (localX * cosA - localY * sinA);
+            const sy = fleet.y + (localX * sinA + localY * cosA);
+
+            let heading = fleet.angle;
+            if (ship.amp > 0) {
+                const slope = Math.cos(fleet.traveled * ship.freq + ship.phase) * ship.amp * ship.freq;
+                heading += Math.atan(slope);
+            }
+
+            this.ctx.save();
+            this.ctx.translate(sx, sy);
+            this.ctx.rotate(heading);
+            this.ctx.scale(0.45, 0.45);
+            this.ctx.beginPath();
+            this.ctx.moveTo(20, 0);
+            this.ctx.lineTo(-15, 15);
+            this.ctx.lineTo(-5, 0);
+            this.ctx.lineTo(-15, -15);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.restore();
+        }
+
+        if ('filter' in this.ctx) {
+            this.ctx.filter = 'none';
+        }
+        this.ctx.restore();
     }
 
     drawPlayerCentered(p, scrX, scrY) {

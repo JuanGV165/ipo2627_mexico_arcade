@@ -10,6 +10,7 @@
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+        <div id="screen-border-fx" class="screen-border-fx" aria-hidden="true"></div>
 
         <button id="btn-fullscreen" class="btn-corner-icon btn-fullscreen-pos" title="Pantalla completa" aria-label="Pantalla completa">
             <svg id="icon-fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -37,7 +38,7 @@
             <div class="hud-item">PUNTOS: <span id="hud-score">0</span></div>
             <div class="hud-item">ENEMIGOS: <span id="hud-enemies">0</span></div>
             <div class="hud-item">OLEADA: <span id="hud-wave">1</span></div>
-            <div class="hud-item">VIDA: <span id="hud-health">100</span>%</div>
+            <div id="hud-health-item" class="hud-item">VIDA: <span id="hud-health">100</span>%</div>
         </div>
 
         <div id="wave-banner" class="wave-banner hidden" aria-live="polite">
@@ -46,7 +47,7 @@
             <span id="wave-banner-sub" class="wave-banner-sub">¡Prepárate para el ataque!</span>
         </div>
 
-        <section id="main-menu" class="menu-screen">
+        <section id="main-menu" class="menu-screen menu-screen-start">
             <div class="game-logo-container">
                 <svg class="game-logo-svg" viewBox="0 0 120 70">
                     <ellipse cx="60" cy="35" rx="50" ry="18" fill="hsl(350, 100%, 56%)" stroke="hsl(350, 100%, 75%)" stroke-width="2.5"/>
@@ -61,7 +62,28 @@
             <h1>MataMarcianos</h1>
             <div class="menu-box">
                 <button id="btn-start" class="btn-primary">INICIAR PARTIDA</button>
+                <button id="btn-leaderboard" class="btn-primary btn-leaderboard">LEADERBOARD</button>
                 <button id="btn-help" class="btn-primary btn-secondary">CÓMO JUGAR</button>
+            </div>
+        </section>
+
+        <section id="leaderboard-screen" class="menu-screen hidden">
+            <div class="menu-box leaderboard-box">
+                <h2 class="leaderboard-title">MEJORES 10 PUNTUACIONES</h2>
+                <div class="leaderboard-table-wrapper">
+                    <table id="leaderboard-table" class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>PUNTOS</th>
+                                <th>OLEADA</th>
+                                <th>FECHA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body"></tbody>
+                    </table>
+                </div>
+                <button id="btn-close-leaderboard" class="btn-primary">VOLVER</button>
             </div>
         </section>
 
@@ -85,9 +107,21 @@
             </div>
         </section>
 
+        <section id="confirm-menu-screen" class="menu-screen hidden">
+            <div class="menu-box confirm-box">
+                <h2 class="confirm-title">¿ABANDONAR PARTIDA?</h2>
+                <p class="confirm-text">Si vuelves al menú principal se perderán los datos y el progreso de la partida actual.</p>
+                <div class="confirm-actions">
+                    <button id="btn-confirm-main-menu" class="btn-primary btn-secondary">SÍ, SALIR</button>
+                    <button id="btn-cancel-main-menu" class="btn-primary">CANCELAR</button>
+                </div>
+            </div>
+        </section>
+
         <section id="gameover-screen" class="menu-screen hidden">
             <div class="menu-box">
                 <h2>FIN DEL JUEGO</h2>
+                <p id="new-record-badge" class="new-record-badge hidden">¡NUEVA PUNTUACIÓN EN EL TOP 10!</p>
                 <p>Puntuación Final: <span id="final-score" class="final-score-text">0</span></p>
                 <button id="btn-restart" class="btn-primary">JUGAR DE NUEVO</button>
                 <button id="btn-gameover-menu" class="btn-primary btn-secondary">MENÚ PRINCIPAL</button>

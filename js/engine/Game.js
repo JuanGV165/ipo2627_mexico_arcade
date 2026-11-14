@@ -33,6 +33,18 @@ export class Game {
         this.burstLocked = false;
         this.wasShootingHeld = false;
 
+        this.healCooldown = 0;
+        this.healCooldownMax = 180;
+        this.isHealing = false;
+        this.lowHealthBleeding = false;
+        this.damageFlashSmallUntil = 0;
+        this.damageFlashLargeUntil = 0;
+        this.scoreRecorded = false;
+
+        this.menuFleet = null;
+        this.lastMenuPattern = null;
+        this.nextMenuFleetTime = performance.now() + 2000;
+
         this.bindEvents();
         this.reset();
         this.loop();
@@ -53,10 +65,21 @@ export class Game {
         this.enemiesSpawnedThisWave = 0;
         this.waveMessageTimer = 180;
         this.enemyIdCounter = 0;
+        this.scoreRecorded = false;
 
         this.burstCount = 0;
         this.burstLocked = false;
         this.wasShootingHeld = false;
+
+        this.healCooldown = 0;
+        this.isHealing = false;
+        this.lowHealthBleeding = false;
+        this.damageFlashSmallUntil = 0;
+        this.damageFlashLargeUntil = 0;
+
+        this.menuFleet = null;
+        this.lastMenuPattern = null;
+        this.nextMenuFleetTime = performance.now() + 2000;
 
         this.player = new Player(this.width / 2, this.height / 2, this.getDifficultySettings());
         this.bullets = [];
@@ -65,6 +88,271 @@ export class Game {
         this.asteroids = [];
 
         this.spawnAsteroids(15, 180);
+    }
+
+    triggerGameOver() {
+        if (this.state === 'GAMEOVER') return;
+        this.state = 'GAMEOVER';
+        let isTop10 = false;
+        if (!this.scoreRecorded) {
+            this.scoreRecorded = true;
+            isTop10 = this.ui.recordScore(this.score, this.wave);
+        }
+        this.ui.setFinalScore(this.score, isTop10);
+        this.ui.updateVisibility(this.state);
+    }
+
+    getRandomMenuSpawnInterval() {
+        return 15000 + Math.random() * 5000;
+    }
+
+    pickMenuPattern() {
+        const roll = Math.random();
+        let pattern;
+        if (roll < 0.30) pattern = 'DYNAMIC_V';
+        else if (roll < 0.56) pattern = 'V_QUINTET';
+        else if (roll < 0.74) pattern = 'SMALL_GROUPS';
+        else if (roll < 0.87) pattern = 'SNAKE_WAVE';
+        else pattern = 'SNAKE_STRAIGHT';
+
+        if ((pattern === 'SNAKE_WAVE' || pattern === 'SNAKE_STRAIGHT') && pattern === this.lastMenuPattern) {
+            const alternatives = ['DYNAMIC_V', 'V_QUINTET', 'SMALL_GROUPS'];
+            pattern = alternatives[Math.floor(Math.random() * alternatives.length)];
+        }
+        this.lastMenuPattern = pattern;
+        return pattern;
+    }
+
+    spawnMenuFleet(now) {
+        const cw = this.canvas.width || window.innerWidth || 1280;
+        const ch = this.canvas.height || window.innerHeight || 720;
+
+        // Punto interior garantizado (al menos 22% dentro de los bordes, sin forzar el centro exacto)
+        const anchorX = cw * (0.22 + Math.random() * 0.56);
+        const anchorY = ch * (0.22 + Math.random() * 0.56);
+
+        // Cualquier ángulo: horizontal, vertical o diagonal
+        const angle = Math.random() * Math.PI * 2;
+        const dirX = Math.cos(angle);
+        const dirY = Math.sin(angle);
+
+        const margin = 160;
+        const minX = -margin;
+        const maxX = cw + margin;
+        const minY = -margin;
+        const maxY = ch + margin;
+
+        const tx = dirX > 0 ? (maxX - anchorX) / dirX : (dirX < 0 ? (minX - anchorX) / dirX : Infinity);
+        const ty = dirY > 0 ? (maxY - anchorY) / dirY : (dirY < 0 ? (minY - anchorY) / dirY : Infinity);
+        const tForward = Math.min(tx, ty);
+
+        const bx = -dirX > 0 ? (maxX - anchorX) / (-dirX) : (-dirX < 0 ? (minX - anchorX) / (-dirX) : Infinity);
+        const by = -dirY > 0 ? (maxY - anchorY) / (-dirY) : (-dirY < 0 ? (minY - anchorY) / (-dirY) : Infinity);
+        const tBackward = Math.min(bx, by);
+
+        const startX = anchorX - dirX * tBackward;
+        const startY = anchorY - dirY * tBackward;
+        const totalDistance = tBackward + tForward;
+        const normalSpeed = 2.2;
+
+        const pattern = this.pickMenuPattern();
+        const totalShips = 10 + Math.floor(Math.random() * 4); // Entre 10 y 16 naves aleatorias
+        const ships = [];
+
+        let turnTriggerDistance = Infinity;
+        let remainingTurn = 0;
+        let turnRate = 0;
+
+        if (pattern === 'DYNAMIC_V') {
+            ships.push({ localX: 0, localY: 0, phase: 0, amp: 0, freq: 0 });
+            for (let i = 1; i < totalShips; i++) {
+                const row = Math.ceil(i / 2);
+                const side = (i % 2 === 1) ? -1 : 1;
+                ships.push({
+                    localX: -row * 28,
+                    localY: side * row * 22,
+                    phase: 0,
+                    amp: 0,
+                    freq: 0
+                });
+            }
+        } else if (pattern === 'V_QUINTET') {
+            // Quintetos en formación V (grupos de 5 naves en V)
+            const numQuintets = Math.ceil(totalShips / 5);
+            let placed = 0;
+            for (let q = 0; q < numQuintets; q++) {
+                const countInQuintet = Math.min(5, totalShips - placed);
+                const groupOffsetX = -q * 115;
+                const groupOffsetY = (q - (numQuintets - 1) / 2) * 115;
+                for (let s = 0; s < countInQuintet; s++) {
+                    const row = Math.ceil(s / 2);
+                    const side = (s % 2 === 1) ? -1 : 1;
+                    ships.push({
+                        localX: groupOffsetX - (s === 0 ? 0 : row * 25),
+                        localY: groupOffsetY + (s === 0 ? 0 : side * row * 21),
+                        phase: 0,
+                        amp: 0,
+                        freq: 0
+                    });
+                    placed++;
+                }
+            }
+        } else if (pattern === 'SMALL_GROUPS') {
+            const numGroups = 3;
+            const basePerGroup = Math.floor(totalShips / numGroups);
+            const remainder = totalShips % numGroups;
+
+            for (let g = 0; g < numGroups; g++) {
+                const groupShips = basePerGroup + (g < remainder ? 1 : 0);
+                const groupOffsetX = -g * 105;
+                const groupOffsetY = (g - 1) * 100;
+                for (let s = 0; s < groupShips; s++) {
+                    const row = Math.ceil(s / 2);
+                    const side = (s % 2 === 1) ? -1 : 1;
+                    ships.push({
+                        localX: groupOffsetX - (s === 0 ? 0 : row * 24),
+                        localY: groupOffsetY + (s === 0 ? 0 : side * row * 20),
+                        phase: 0,
+                        amp: 0,
+                        freq: 0
+                    });
+                }
+            }
+        } else if (pattern === 'SNAKE_WAVE') {
+            // Serpiente 1: longitud de onda larga y amplitud moderada para mantener velocidad constante
+            const spacing = 25;
+            const waveAmp = 22 + Math.random() * 6;
+            const waveFreq = 0.015 + Math.random() * 0.004;
+            for (let i = 0; i < totalShips; i++) {
+                ships.push({
+                    localX: -i * spacing,
+                    localY: 0,
+                    phase: -i * spacing * waveFreq,
+                    amp: waveAmp,
+                    freq: waveFreq
+                });
+            }
+
+            if (Math.random() < 0.5) {
+                const turnSign = Math.random() < 0.5 ? -1 : 1;
+                remainingTurn = turnSign * (0.35 + Math.random() * 0.35);
+                turnRate = turnSign * 0.0055;
+                turnTriggerDistance = totalDistance * (0.3 + Math.random() * 0.25);
+            }
+        } else {
+            // Serpiente 2 (SNAKE_STRAIGHT): sin oscilación, con posible giro suave único
+            const spacing = 25;
+            for (let i = 0; i < totalShips; i++) {
+                ships.push({
+                    localX: -i * spacing,
+                    localY: 0,
+                    phase: 0,
+                    amp: 0,
+                    freq: 0
+                });
+            }
+
+            if (Math.random() < 0.5) {
+                const turnSign = Math.random() < 0.5 ? -1 : 1;
+                remainingTurn = turnSign * (0.35 + Math.random() * 0.35);
+                turnRate = turnSign * 0.0055;
+                turnTriggerDistance = totalDistance * (0.3 + Math.random() * 0.25);
+            }
+        }
+
+        this.menuFleet = {
+            pattern,
+            x: startX,
+            y: startY,
+            angle,
+            dirX,
+            dirY,
+            speed: normalSpeed,
+            traveled: 0,
+            minPassDistance: tBackward,
+            maxDistance: totalDistance + Math.hypot(cw, ch) + 460,
+            turnTriggerDistance,
+            remainingTurn,
+            turnRate,
+            ships
+        };
+
+        this.nextMenuFleetTime = now + this.getRandomMenuSpawnInterval();
+    }
+
+    updateMenuFleet(now) {
+        if (!this.menuFleet && now >= this.nextMenuFleetTime) {
+            this.spawnMenuFleet(now);
+        }
+
+        if (this.menuFleet) {
+            const isSnake = this.menuFleet.pattern === 'SNAKE_WAVE' || this.menuFleet.pattern === 'SNAKE_STRAIGHT';
+            if (
+                isSnake &&
+                this.menuFleet.remainingTurn !== 0 &&
+                this.menuFleet.traveled >= this.menuFleet.turnTriggerDistance
+            ) {
+                const stepTurn = Math.abs(this.menuFleet.remainingTurn) <= Math.abs(this.menuFleet.turnRate)
+                    ? this.menuFleet.remainingTurn
+                    : this.menuFleet.turnRate;
+                this.menuFleet.angle += stepTurn;
+                this.menuFleet.remainingTurn -= stepTurn;
+                this.menuFleet.dirX = Math.cos(this.menuFleet.angle);
+                this.menuFleet.dirY = Math.sin(this.menuFleet.angle);
+            }
+
+            this.menuFleet.x += this.menuFleet.dirX * this.menuFleet.speed;
+            this.menuFleet.y += this.menuFleet.dirY * this.menuFleet.speed;
+            this.menuFleet.traveled += this.menuFleet.speed;
+
+            const cw = this.canvas.width || window.innerWidth || 1280;
+            const ch = this.canvas.height || window.innerHeight || 720;
+            const exitMargin = 460;
+            const hasExitedScreen = this.menuFleet.traveled > this.menuFleet.minPassDistance && (
+                this.menuFleet.x < -exitMargin ||
+                this.menuFleet.x > cw + exitMargin ||
+                this.menuFleet.y < -exitMargin ||
+                this.menuFleet.y > ch + exitMargin
+            );
+
+            if (hasExitedScreen || this.menuFleet.traveled >= this.menuFleet.maxDistance) {
+                this.menuFleet = null;
+            }
+        }
+    }
+
+    onPlayerAttack() {
+        this.healCooldown = this.healCooldownMax;
+        this.isHealing = false;
+    }
+
+    onPlayerDamaged() {
+        const pct = (this.player.health / this.player.maxHealth) * 100;
+        const flashUntil = performance.now() + 400;
+
+        if (pct <= 30) {
+            this.damageFlashLargeUntil = flashUntil;
+        } else {
+            this.damageFlashSmallUntil = flashUntil;
+        }
+
+        this.healCooldown = this.healCooldownMax;
+        this.isHealing = false;
+    }
+
+    updateHealthVisualStates() {
+        if (!this.player) return;
+        const pct = (this.player.health / this.player.maxHealth) * 100;
+        if (this.player.health <= 0) {
+            this.lowHealthBleeding = false;
+            this.isHealing = false;
+            return;
+        }
+        if (pct <= 30) {
+            this.lowHealthBleeding = true;
+        } else if (pct > 40) {
+            this.lowHealthBleeding = false;
+        }
     }
 
     spawnAsteroids(count, invulnerableFrames = 180) {
@@ -227,6 +515,7 @@ export class Game {
             onStartSandbox: () => { 
                 this.reset(); 
                 this.state = 'SANDBOX'; 
+                this.menuFleet = null;
                 this.width = 2400;
                 this.height = 1600;
                 this.squad.mw = 2400;
@@ -298,6 +587,7 @@ export class Game {
         this.difficulty = difficulty || 'normal';
         this.squad.speedMultiplier = this.getDifficultySettings().speedMultiplier;
         this.reset();
+        this.menuFleet = null;
         this.state = 'PLAYING';
         this.ui.updateVisibility(this.state);
     }
@@ -316,16 +606,23 @@ export class Game {
     damagePlayer(amount, sourceChoreo) {
         if (!this.sandboxPlayerActive) return; 
         if (this.player.damage(amount)) {
+            this.onPlayerDamaged();
+            this.updateHealthVisualStates();
             if (sourceChoreo && this.squad.tacticalMemory[sourceChoreo]) this.squad.tacticalMemory[sourceChoreo] += 30;
             if (this.player.health <= 0 && this.state !== 'SANDBOX') {
-                this.state = 'GAMEOVER';
-                this.ui.setFinalScore(this.score);
-                this.ui.updateVisibility(this.state);
+                this.triggerGameOver();
             }
         }
     }
 
     update() {
+        const now = performance.now();
+
+        if (this.state === 'MENU') {
+            this.updateMenuFleet(now);
+            return;
+        }
+
         if (this.state !== 'PLAYING' && this.state !== 'SANDBOX') return;
 
         let forcedFormation = null;
@@ -372,6 +669,9 @@ export class Game {
                 this.waveEnemiesTotal = Math.floor(this.waveEnemiesTotal);
                 this.waveMessageTimer = 180;
                 this.player.health = this.player.maxHealth;
+                this.healCooldown = 0;
+                this.isHealing = false;
+                this.lowHealthBleeding = false;
                 this.asteroids = [];
                 this.spawnAsteroids(15, 180); 
                 this.squad.currentChoreo = 'SNAKE_COLUMN';
@@ -380,6 +680,7 @@ export class Game {
             }
         }
 
+        const healthBeforeUpdate = this.player.health;
         let tryToShoot = false;
 
         if (this.state === 'SANDBOX' && this.sandboxAuto && this.sandboxPlayerActive) {
@@ -456,6 +757,7 @@ export class Game {
 
             if (!this.burstLocked && this.burstCount < 3 && this.player.cooldown === 0) {
                 this.player.shoot();
+                this.onPlayerAttack();
                 this.bullets.push(new Projectile(
                     this.player.x + Math.cos(this.player.angle) * 12,
                     this.player.y + Math.sin(this.player.angle) * 12,
@@ -475,6 +777,30 @@ export class Game {
             this.wasShootingHeld = false;
             this.burstCount = 0;
             this.burstLocked = false;
+        }
+
+        if (this.state === 'PLAYING' && this.sandboxPlayerActive) {
+            if (this.player.health < healthBeforeUpdate) {
+                this.onPlayerDamaged();
+            } else if (this.healCooldown > 0) {
+                this.healCooldown--;
+                if (this.player.health > healthBeforeUpdate) {
+                    this.player.health = healthBeforeUpdate;
+                }
+                this.isHealing = false;
+            } else if (this.player.health < this.player.maxHealth && this.player.health > 0) {
+                if (this.player.health <= healthBeforeUpdate) {
+                    this.player.health = Math.min(
+                        this.player.maxHealth,
+                        this.player.health + this.getDifficultySettings().healRate
+                    );
+                }
+                this.isHealing = true;
+            } else {
+                this.isHealing = false;
+            }
+        } else {
+            this.isHealing = false;
         }
 
         let maxActive = this.state === 'SANDBOX' ? 50 : Math.min(4 + Math.floor((this.wave - 1) * 0.5), 12);
@@ -563,7 +889,17 @@ export class Game {
         this.enemyBullets = this.enemyBullets.filter(b => b.life > 0);
 
         this.squad.update(activePlayer, this.enemies, this.bullets, this.asteroids, this.enemyBullets, this.wave, forcedFormation);
+
+        const healthBeforeCollision = this.player.health;
         CollisionSystem.check(this);
+        if (this.player.health < healthBeforeCollision) {
+            this.onPlayerDamaged();
+        }
+        this.updateHealthVisualStates();
+
+        if (this.player.health <= 0 && this.state === 'PLAYING') {
+            this.triggerGameOver();
+        }
     }
 
     loop() {

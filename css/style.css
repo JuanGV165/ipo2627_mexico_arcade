@@ -3,7 +3,12 @@
     --accent-blue: hsl(185, 100%, 50%);
     --accent-pink: hsl(345, 100%, 60%);
     --accent-gold: hsl(51, 100%, 50%);
-    --glass-bg: hsla(240, 50%, 8%, 0.75);
+    --accent-orange: hsl(28, 100%, 54%);
+    --accent-green: hsl(135, 92%, 50%);
+    --scarlet-border: hsla(348, 82%, 40%, 0.78);
+    --scarlet-glow: hsla(348, 78%, 32%, 0.54);
+    --scarlet-deep: hsla(346, 75%, 24%, 0.34);
+    --glass-bg: hsla(240, 50%, 8%, 0.8);
     --border-glow: 0 0 0.9375rem hsla(185, 100%, 50%, 0.3);
 }
 
@@ -39,6 +44,63 @@ canvas {
 
 .hidden {
     display: none !important;
+}
+
+/* Efectos visuales escarlata en los 4 bordes de pantalla (arriba, abajo, izquierda y derecha) */
+.screen-border-fx {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 20;
+    border-style: solid;
+    border-width: 0.3125rem;
+    border-color: hsla(348, 82%, 40%, 0);
+    box-shadow: inset 0 0 0 0 hsla(348, 78%, 32%, 0);
+    transition: border-color 0.08s ease, box-shadow 0.08s ease;
+}
+
+/* Borde escarlata de impacto / baja vida (visible en los 4 bordes incluyendo el superior) */
+.screen-border-fx.fx-border-small {
+    border-width: 0.3125rem;
+    border-color: var(--scarlet-border);
+    box-shadow:
+        inset 0 0 1.65rem 0.38rem var(--scarlet-glow),
+        inset 0 0.35rem 2.75rem 0.18rem var(--scarlet-deep);
+}
+
+/* Parpadeo del borde mientras se cura hasta superar el 40% */
+.screen-border-fx.fx-border-small.fx-bleed-blink {
+    animation: bleed-pulse-blink 0.65s ease-in-out infinite alternate;
+}
+
+/* Borde escarlata reforzado (0.4s): daño recibido estando ya <= 30% de vida */
+.screen-border-fx.fx-border-large {
+    border-width: 0.45rem;
+    border-color: hsla(348, 84%, 42%, 0.88);
+    box-shadow:
+        inset 0 0 2.75rem 0.68rem hsla(348, 80%, 34%, 0.68),
+        inset 0 0.5rem 4.6rem 0.35rem hsla(346, 76%, 25%, 0.42);
+}
+
+@keyframes bleed-pulse-blink {
+    0% {
+        border-color: hsla(348, 82%, 40%, 0.15);
+        box-shadow:
+            inset 0 0 0.85rem 0.16rem hsla(348, 78%, 32%, 0.14),
+            inset 0 0.2rem 1.6rem 0.08rem hsla(346, 75%, 24%, 0.09);
+    }
+    100% {
+        border-color: hsla(348, 82%, 42%, 0.82);
+        box-shadow:
+            inset 0 0 1.75rem 0.42rem hsla(348, 78%, 34%, 0.58),
+            inset 0 0.35rem 2.9rem 0.2rem hsla(346, 75%, 25%, 0.36);
+    }
 }
 
 /* Botones de esquina (Pantalla completa y Pausa) */
@@ -91,7 +153,7 @@ canvas {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: hsla(240, 52%, 4%, 0.85);
+    background: hsla(240, 52%, 4%, 0.84);
     backdrop-filter: blur(0.5rem);
     display: flex;
     flex-direction: column;
@@ -100,6 +162,19 @@ canvas {
     z-index: 10;
     padding: 1.25rem;
     box-sizing: border-box;
+}
+
+/* Fondo transparente en el menú inicial para ver las estrellas y la flota de fondo */
+.menu-screen-start {
+    background: radial-gradient(circle at center, hsla(240, 52%, 4%, 0.12) 0%, hsla(240, 52%, 4%, 0.42) 100%);
+    backdrop-filter: none;
+}
+
+/* Pantalla de pausa y confirmación con estrellas visibles */
+#pause-screen,
+#confirm-menu-screen {
+    background: radial-gradient(circle at center, hsla(240, 52%, 4%, 0.22) 0%, hsla(240, 52%, 4%, 0.56) 100%);
+    backdrop-filter: none;
 }
 
 .game-logo-container {
@@ -131,11 +206,13 @@ h1 {
 h2 {
     color: var(--accent-blue);
     margin-top: 0;
+    margin-bottom: 0.25rem;
     text-align: center;
 }
 
 .menu-box {
     background: var(--glass-bg);
+    backdrop-filter: blur(0.5rem);
     border: 0.0625rem solid hsla(185, 100%, 50%, 0.3);
     box-shadow: var(--border-glow);
     border-radius: 1rem;
@@ -153,12 +230,120 @@ h2 {
     max-width: 26.25rem;
 }
 
+.confirm-box {
+    max-width: 25rem;
+    border-color: hsla(345, 100%, 60%, 0.45);
+    box-shadow: 0 0 1.15rem hsla(345, 100%, 60%, 0.28);
+}
+
+.confirm-title {
+    color: var(--accent-pink);
+    font-size: 1.35rem;
+}
+
+.confirm-text {
+    text-align: center;
+    margin: 0.25rem 0 0.5rem 0;
+    line-height: 1.55;
+    font-size: 0.98rem;
+    color: hsl(240, 20%, 88%);
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+/* Ventana emergente y tabla responsive del Leaderboard */
+.leaderboard-box {
+    max-width: 32rem;
+    width: 100%;
+    border-color: hsla(51, 100%, 50%, 0.45);
+    box-shadow: 0 0 1.25rem hsla(51, 100%, 50%, 0.22);
+}
+
+.leaderboard-title {
+    color: var(--accent-gold);
+    letter-spacing: 0.08rem;
+    font-size: clamp(1.15rem, 3vw, 1.5rem);
+}
+
+.leaderboard-table-wrapper {
+    width: 100%;
+    max-height: 52vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 0.625rem;
+    border: 0.0625rem solid hsla(185, 100%, 50%, 0.22);
+    background: hsla(240, 55%, 5%, 0.72);
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    font-size: 0.92rem;
+}
+
+.leaderboard-table thead th {
+    position: sticky;
+    top: 0;
+    background: hsl(240, 50%, 11%);
+    color: var(--accent-blue);
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.06rem;
+    padding: 0.65rem 0.5rem;
+    border-bottom: 0.0625rem solid hsla(185, 100%, 50%, 0.28);
+}
+
+.leaderboard-table tbody td {
+    padding: 0.55rem 0.5rem;
+    border-bottom: 0.0625rem solid hsla(240, 30%, 22%, 0.45);
+    color: hsl(240, 20%, 90%);
+}
+
+.leaderboard-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.leaderboard-table tbody tr:nth-child(even) {
+    background: hsla(240, 45%, 10%, 0.42);
+}
+
+.leaderboard-rank-1 td {
+    color: var(--accent-gold) !important;
+    font-weight: 700;
+}
+
+.leaderboard-rank-2 td {
+    color: hsl(210, 20%, 86%) !important;
+    font-weight: 700;
+}
+
+.leaderboard-rank-3 td {
+    color: hsl(28, 82%, 62%) !important;
+    font-weight: 700;
+}
+
+.leaderboard-score-cell {
+    font-weight: 700;
+    color: var(--accent-blue);
+}
+
+.leaderboard-empty {
+    padding: 1.5rem 1rem !important;
+    color: hsl(240, 15%, 70%) !important;
+    font-style: italic;
+}
+
 .btn-primary, .btn-small {
     background: linear-gradient(135deg, hsla(185, 100%, 50%, 0.2), hsla(220, 100%, 50%, 0.3));
     border: 0.0625rem solid var(--accent-blue);
     color: var(--accent-blue);
     padding: 0.75rem 1.5rem;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     border-radius: 0.5rem;
     cursor: pointer;
@@ -175,6 +360,19 @@ h2 {
     color: var(--bg-dark);
     box-shadow: 0 0 1.25rem var(--accent-blue);
     transform: translateY(-0.125rem);
+}
+
+.btn-leaderboard {
+    background: hsla(51, 100%, 50%, 0.14);
+    border: 0.0625rem solid var(--accent-gold);
+    color: var(--accent-gold);
+    box-shadow: 0 0 0.625rem hsla(51, 100%, 50%, 0.14);
+}
+
+.btn-leaderboard:hover {
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+    box-shadow: 0 0 1.25rem var(--accent-gold);
 }
 
 .btn-secondary {
@@ -222,6 +420,26 @@ h2 {
 
 .hud-item span {
     color: var(--accent-blue);
+    transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+/* Estados dinámicos de color para la vida en el HUD */
+.hud-item.health-cooldown-yellow,
+.hud-item.health-cooldown-yellow span {
+    color: var(--accent-gold);
+    text-shadow: 0 0 0.5rem hsla(51, 100%, 50%, 0.45);
+}
+
+.hud-item.health-cooldown-orange,
+.hud-item.health-cooldown-orange span {
+    color: var(--accent-orange);
+    text-shadow: 0 0 0.5rem hsla(28, 100%, 54%, 0.45);
+}
+
+.hud-item.health-healing-green,
+.hud-item.health-healing-green span {
+    color: var(--accent-green);
+    text-shadow: 0 0 0.55rem hsla(135, 92%, 50%, 0.5);
 }
 
 /* Banner estético de Nueva Oleada */
@@ -302,6 +520,18 @@ h2 {
     color: var(--accent-gold);
 }
 
+.new-record-badge {
+    margin: 0;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999rem;
+    background: hsla(51, 100%, 50%, 0.16);
+    border: 0.0625rem solid hsla(51, 100%, 50%, 0.5);
+    color: var(--accent-gold);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06rem;
+}
+
 .final-score-text {
     color: var(--accent-gold);
     font-weight: bold;
@@ -321,6 +551,23 @@ h2 {
     }
 
     .menu-box {
-        padding: 1.25rem 1.5rem;
+        padding: 1.25rem 1.35rem;
+    }
+
+    .leaderboard-box {
+        padding: 1.15rem 0.9rem;
+    }
+
+    .leaderboard-table {
+        font-size: 0.8rem;
+    }
+
+    .leaderboard-table thead th,
+    .leaderboard-table tbody td {
+        padding: 0.45rem 0.3rem;
+    }
+
+    .confirm-actions {
+        flex-direction: column;
     }
 }
