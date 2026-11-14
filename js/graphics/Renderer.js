@@ -2,11 +2,15 @@ export class Renderer {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.stars = Array.from({ length: 150 }, () => ({
+        const starColors = ['#ffffff', '#dcf7ff', '#fff4d2', '#cbeaff'];
+        this.stars = Array.from({ length: 650 }, () => ({
             x: Math.random() * 2400,
             y: Math.random() * 1600,
-            size: Math.random() * 2, 
-            alpha: Math.random() * 0.8 + 0.2
+            size: 1.3 + Math.random() * 1.2,
+            alpha: 0.5 + Math.random() * 0.5,
+            twinkleSpeed: 0.02 + Math.random() * 0.03,
+            twinklePhase: Math.random() * Math.PI * 2,
+            color: starColors[Math.floor(Math.random() * starColors.length)]
         }));
     }
 
@@ -19,13 +23,18 @@ export class Renderer {
     }
 
     render(game) {
+        const targetW = this.canvas.clientWidth || window.innerWidth;
+        const targetH = this.canvas.clientHeight || window.innerHeight;
+        if (this.canvas.width !== targetW || this.canvas.height !== targetH) {
+            this.canvas.width = targetW;
+            this.canvas.height = targetH;
+        }
+
         const cw = this.canvas.width, ch = this.canvas.height;
         const p = game.player;
         const mw = game.width, mh = game.height;
         const isSandbox = game.state === 'SANDBOX';
         
-        // En Sandbox el mapa es de 1200x800 (tamaño de la ventana).
-        // La cámara siempre está fija en el centro (600, 400) para ver todo sin zoom.
         const fixedCamera = isSandbox; 
         const camX = fixedCamera ? mw / 2 : p.x;
         const camY = fixedCamera ? mh / 2 : p.y;
@@ -34,27 +43,32 @@ export class Renderer {
         this.ctx.fillRect(0, 0, cw, ch);
         this.ctx.save(); 
 
-        this.ctx.fillStyle = '#ffffff';
-        let starMargin = 5;
+        const zoom = isSandbox ? 0.5 : 1;
+        this.ctx.translate(cw / 2, ch / 2);
+        this.ctx.scale(zoom, zoom); 
+        this.ctx.translate(-cw / 2, -ch / 2);
+
+        let starMargin = fixedCamera ? 1500 : (150 / zoom);
+        const now = performance.now() * 0.05;
         for (let i = 0; i < this.stars.length; i++) {
             let s = this.stars[i];
-            // Asegurar que las estrellas no se salgan del mapa en modo normal
             let sx = s.x % mw; let sy = s.y % mh; 
             let pos = this.getScreenPos(sx, sy, camX, camY, mw, mh);
             if (pos.x >= -starMargin && pos.x <= cw+starMargin && pos.y >= -starMargin && pos.y <= ch+starMargin) {
-                this.ctx.globalAlpha = s.alpha;
+                const twinkle = 0.8 + 0.2 * Math.sin(now * s.twinkleSpeed + s.twinklePhase);
+                this.ctx.globalAlpha = Math.min(1, s.alpha * twinkle);
+                this.ctx.fillStyle = s.color;
                 this.ctx.fillRect(pos.x, pos.y, s.size, s.size);
             }
         }
         this.ctx.globalAlpha = 1.0;
 
-        if (game.state === 'PLAYING' || isSandbox) {
-            this.drawAsteroids(game.asteroids, camX, camY, mw, mh, fixedCamera);
-            this.drawEnemies(game.enemies, camX, camY, mw, mh, fixedCamera);
-            this.drawPlayerWaves(game.bullets, camX, camY, mw, mh, fixedCamera);
-            this.drawEnemyBullets(game.enemyBullets, camX, camY, mw, mh, fixedCamera);
+        if (game.state === 'PLAYING' || game.state === 'PAUSED' || isSandbox) {
+            this.drawAsteroids(game.asteroids, camX, camY, mw, mh, fixedCamera, zoom);
+            this.drawEnemies(game.enemies, camX, camY, mw, mh, fixedCamera, zoom);
+            this.drawPlayerWaves(game.bullets, camX, camY, mw, mh, fixedCamera, zoom);
+            this.drawEnemyBullets(game.enemyBullets, camX, camY, mw, mh, fixedCamera, zoom);
             
-            // Dibuja al jugador solo si está activo
             if (game.sandboxPlayerActive) {
                 let pPos = this.getScreenPos(p.x, p.y, camX, camY, mw, mh);
                 this.drawPlayerCentered(p, pPos.x, pPos.y);
@@ -114,8 +128,8 @@ export class Renderer {
         this.ctx.restore();
     }
 
-    drawEnemies(enemies, camX, camY, mw, mh, fixedCamera) {
-        let margin = 30; 
+    drawEnemies(enemies, camX, camY, mw, mh, fixedCamera, zoom) {
+        let margin = fixedCamera ? 1500 : (100 / zoom); 
         this.ctx.fillStyle = '#ff3366';
         for (let i = 0; i < enemies.length; i++) {
             let e = enemies[i];
@@ -134,12 +148,14 @@ export class Renderer {
         }
     }
 
-    drawAsteroids(asteroids, camX, camY, mw, mh, fixedCamera) {
-        let margin = 60;
+    drawAsteroids(asteroids, camX, camY, mw, mh, fixedCamera, zoom) {
+        let margin = fixedCamera ? 1500 : (200 / zoom);
         this.ctx.lineWidth = 1.5;
         for (let k = 0; k < asteroids.length; k++) {
             let a = asteroids[k];
+            if (!Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(a.radius)) continue;
             let pos = this.getScreenPos(a.x, a.y, camX, camY, mw, mh);
+            if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) continue;
             if (pos.x < -margin || pos.x > this.canvas.width+margin || pos.y < -margin || pos.y > this.canvas.height+margin) continue;
 
             this.ctx.save();
@@ -148,8 +164,8 @@ export class Renderer {
             this.ctx.beginPath();
             
             if (a.invulnerableTimer > 0) {
-                this.ctx.strokeStyle = `hsla(36, 100%, 50%, ${0.5 + Math.abs(Math.sin(Date.now()*0.01))*0.5})`; 
-                this.ctx.fillStyle = '#201000';
+                this.ctx.strokeStyle = (Math.floor(Date.now() / 120) % 2 === 0) ? '#ffe600' : '#ffbb00';
+                this.ctx.fillStyle = 'rgba(65, 50, 0, 0.45)';
             } else {
                 this.ctx.strokeStyle = '#a0a0b0';
                 this.ctx.fillStyle = '#101018';
@@ -168,10 +184,8 @@ export class Renderer {
         }
     }
 
-    drawPlayerWaves(bullets, camX, camY, mw, mh, fixedCamera) {
-        let margin = 30;
-        this.ctx.strokeStyle = '#00f3ff';
-        this.ctx.lineWidth = 3;
+    drawPlayerWaves(bullets, camX, camY, mw, mh, fixedCamera, zoom) {
+        let margin = fixedCamera ? 1500 : (100 / zoom);
         for (let i = 0; i < bullets.length; i++) {
             let b = bullets[i];
             let pos = this.getScreenPos(b.x, b.y, camX, camY, mw, mh);
@@ -180,17 +194,25 @@ export class Renderer {
             this.ctx.save();
             this.ctx.translate(pos.x, pos.y);
             this.ctx.rotate(b.angle);
-            this.ctx.shadowColor = '#00f3ff';
-            this.ctx.shadowBlur = 4; 
+            
             this.ctx.beginPath();
             this.ctx.arc(0, 0, b.radius, -Math.PI / 2.2, Math.PI / 2.2);
+            this.ctx.lineWidth = 6;
+            this.ctx.strokeStyle = 'rgba(0, 243, 255, 0.3)';
             this.ctx.stroke();
+
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, b.radius, -Math.PI / 2.2, Math.PI / 2.2);
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = '#00f3ff';
+            this.ctx.stroke();
+            
             this.ctx.restore();
         }
     }
 
-    drawEnemyBullets(bullets, camX, camY, mw, mh, fixedCamera) {
-        let margin = 30;
+    drawEnemyBullets(bullets, camX, camY, mw, mh, fixedCamera, zoom) {
+        let margin = fixedCamera ? 1500 : (100 / zoom);
         this.ctx.fillStyle = '#ff3366';
         for (let i = 0; i < bullets.length; i++) {
             let b = bullets[i];

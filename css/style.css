@@ -1,192 +1,326 @@
 :root {
-    --bg-color: #050510;
-    --text-color: #ffffff;
-    --accent-blue: #00f3ff;
-    --accent-blue-hover: #00c3cc;
-    --accent-red: #ff3366;
-    --hud-height: 50px;
-    --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --bg-dark: hsl(240, 52%, 4%);
+    --accent-blue: hsl(185, 100%, 50%);
+    --accent-pink: hsl(345, 100%, 60%);
+    --accent-gold: hsl(51, 100%, 50%);
+    --glass-bg: hsla(240, 50%, 8%, 0.75);
+    --border-glow: 0 0 0.9375rem hsla(185, 100%, 50%, 0.3);
 }
 
-body {
-    margin: 0; padding: 0;
-    background-color: var(--bg-color); color: var(--text-color);
-    font-family: var(--font-main); overflow: hidden;
-    touch-action: none;
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--bg-dark);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: hsl(0, 0%, 100%);
     user-select: none;
     -webkit-user-select: none;
 }
 
-/* --- BLOQUEO VERTICAL (ROTACIÓN FORZADA) --- */
-#portrait-warning {
-    display: none;
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: #050510; color: #00f3ff; z-index: 10000;
-    flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; padding: 20px; box-sizing: border-box;
-}
-#portrait-warning h2 { font-size: 2.5rem; margin-bottom: 10px; }
-#portrait-warning p { font-size: 1.2rem; }
-
-@media screen and (orientation: portrait) {
-    #game-container, #btn-fullscreen { display: none !important; }
-    #portrait-warning { display: flex; }
-}
-
-/* --- BOTÓN FULLSCREEN FLOTANTE --- */
-#btn-fullscreen {
-    position: absolute; top: 10px; left: 10px; z-index: 9999;
-    padding: 6px 12px; font-weight: bold; background: rgba(0, 0, 0, 0.6);
-}
-
 #game-container {
-    position: relative; width: 100vw; height: 100vh;
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
 }
 
 canvas {
-    display: block; width: 100%; height: calc(100% - var(--hud-height));
-    margin-top: var(--hud-height); object-fit: cover;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-dark);
 }
 
-/* --- INTERFAZ / HUD --- */
-#ui-layer {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none; display: flex; flex-direction: column;
-}
-#ui-layer > * { pointer-events: auto; }
-.hidden { display: none !important; }
-
-#hud {
-    height: var(--hud-height); background: rgba(5, 5, 16, 0.85);
-    border-bottom: 1px solid var(--accent-blue);
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 0 15px; box-sizing: border-box; flex-wrap: wrap; gap: 5px;
-}
-.hud-item { font-size: 1.1rem; font-weight: bold; }
-
-.health-container { display: flex; align-items: center; gap: 10px; }
-.health-bar-bg {
-    width: 120px; height: 15px; background: rgba(255,255,255,0.2);
-    border-radius: 8px; overflow: hidden; border: 1px solid var(--accent-blue);
-}
-.health-bar-fill {
-    width: 100%; height: 100%; background-color: var(--accent-blue);
-    transition: width 0.2s ease, background-color 0.2s ease;
+.hidden {
+    display: none !important;
 }
 
-/* --- MENÚS RESPONSIVOS --- */
+/* Botones de esquina (Pantalla completa y Pausa) */
+.btn-corner-icon {
+    position: fixed;
+    top: 0.9375rem;
+    z-index: 25;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: hsla(240, 50%, 8%, 0.65);
+    backdrop-filter: blur(0.375rem);
+    border: 0.0625rem solid hsla(185, 100%, 50%, 0.35);
+    border-radius: 0.625rem;
+    color: var(--accent-blue);
+    cursor: pointer;
+    box-shadow: 0 0.25rem 0.9375rem hsla(0, 0%, 0%, 0.45);
+    transition: all 0.2s ease;
+    outline: none;
+    touch-action: manipulation;
+}
+
+.btn-fullscreen-pos {
+    left: 0.9375rem;
+}
+
+.btn-pause-pos {
+    right: 0.9375rem;
+}
+
+.btn-corner-icon:hover {
+    background: var(--accent-blue);
+    color: var(--bg-dark);
+    box-shadow: 0 0 0.9375rem var(--accent-blue);
+    transform: scale(1.05);
+}
+
+.btn-corner-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    pointer-events: none;
+}
+
 .menu-screen {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    padding: 15px; box-sizing: border-box; overflow-y: auto; /* Permite scroll si la pantalla es enana */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: hsla(240, 52%, 4%, 0.85);
+    backdrop-filter: blur(0.5rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    padding: 1.25rem;
+    box-sizing: border-box;
 }
 
-/* clamp() asegura que el texto se encoja para caber sin romperse */
-.menu-screen h1 {
-    font-size: clamp(2rem, 5vw, 4rem); 
-    color: var(--accent-blue); margin-bottom: 15px;
-    text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+.game-logo-container {
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    filter: drop-shadow(0 0 0.625rem hsla(345, 100%, 60%, 0.6));
+}
+
+.game-logo-svg {
+    width: 6.25rem;
+    height: 3.75rem;
+    transform: rotate(-12deg);
+}
+
+h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: 0.125rem;
+    margin: 0 0 1.25rem 0;
+    background: linear-gradient(135deg, var(--accent-pink), var(--accent-gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+    text-shadow: 0 0 1.25rem hsla(345, 100%, 60%, 0.4);
+}
+
+h2 {
+    color: var(--accent-blue);
+    margin-top: 0;
     text-align: center;
 }
-.menu-screen h2 {
-    font-size: clamp(1.5rem, 4vw, 2.5rem); margin-bottom: 15px; text-align: center;
+
+.menu-box {
+    background: var(--glass-bg);
+    border: 0.0625rem solid hsla(185, 100%, 50%, 0.3);
+    box-shadow: var(--border-glow);
+    border-radius: 1rem;
+    padding: 1.5625rem 2.1875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9375rem;
+    width: 100%;
+    max-width: 23.75rem;
+    box-sizing: border-box;
+    align-items: center;
 }
 
-.help-panel {
-    background: rgba(10, 10, 25, 0.95);
-    padding: clamp(15px, 3vw, 30px);
-    border: 2px solid var(--accent-blue); border-radius: 12px;
-    max-width: 90%; width: 500px; text-align: left;
-}
-.help-panel ul { margin-bottom: 15px; padding-left: 20px; }
-.help-panel li { margin-bottom: 8px; font-size: clamp(0.9rem, 2vw, 1.1rem); line-height: 1.4; }
-
-/* --- CONTROLES DE DIFICULTAD --- */
-.difficulty-control {
-    border: 1px solid var(--accent-blue); border-radius: 8px;
-    padding: 10px 15px; margin-bottom: 15px; width: 100%; max-width: 350px;
-    box-sizing: border-box; background: rgba(0, 0, 0, 0.5);
-}
-.difficulty-control legend {
-    padding: 0 10px; color: var(--accent-blue); font-weight: bold; font-size: clamp(0.9rem, 2.5vw, 1.1rem);
-}
-.difficulty-options {
-    display: flex; justify-content: space-around; flex-wrap: wrap; gap: 8px;
-}
-.difficulty-option { display: none; }
-.difficulty-option + label {
-    cursor: pointer; padding: 6px 12px; border: 1px solid transparent;
-    border-radius: 4px; transition: all 0.2s ease;
-    font-size: clamp(0.9rem, 2.5vw, 1.1rem); flex: 1; text-align: center;
-}
-.difficulty-option:checked + label {
-    background: var(--accent-blue); color: var(--bg-color); font-weight: bold;
+.help-box {
+    max-width: 26.25rem;
 }
 
-/* --- BOTONES --- */
-.btn {
-    background: transparent; color: var(--accent-blue);
-    border: 2px solid var(--accent-blue); border-radius: 8px;
-    padding: clamp(10px, 2vw, 15px) clamp(20px, 4vw, 30px);
-    font-size: clamp(1rem, 3vw, 1.5rem);
-    font-family: inherit; font-weight: bold; cursor: pointer;
-    transition: all 0.2s ease; margin-bottom: 10px;
-    text-transform: uppercase; width: 100%; max-width: 300px;
-}
-.btn:hover { background: var(--accent-blue); color: var(--bg-color); box-shadow: 0 0 15px var(--accent-blue); }
-.btn-secondary { border-color: #aaaaaa; color: #aaaaaa; }
-.btn-secondary:hover { background: #aaaaaa; color: var(--bg-color); box-shadow: 0 0 15px #aaaaaa; }
-.btn-small {
-    background: transparent; color: var(--accent-blue); border: 1px solid var(--accent-blue);
-    border-radius: 4px; cursor: pointer; padding: 5px 10px; font-weight: bold; display: flex; align-items: center; gap: 5px;
-}
-
-/* --- ICONOS --- */
-.pause-icon {
-    display: inline-block; width: 12px; height: 16px;
-    border-left: 4px solid currentColor; border-right: 4px solid currentColor;
-}
-.is-paused .pause-icon {
-    border: none; width: 0; height: 0;
-    border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 12px solid currentColor;
+.btn-primary, .btn-small {
+    background: linear-gradient(135deg, hsla(185, 100%, 50%, 0.2), hsla(220, 100%, 50%, 0.3));
+    border: 0.0625rem solid var(--accent-blue);
+    color: var(--accent-blue);
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 0 0.625rem hsla(185, 100%, 50%, 0.15);
+    outline: none;
+    touch-action: manipulation;
 }
 
-/* --- DIÁLOGOS --- */
-dialog {
-    background: rgba(10, 10, 25, 0.95); color: white;
-    border: 2px solid var(--accent-red); border-radius: 12px;
-    padding: clamp(15px, 4vw, 30px); text-align: center; max-width: 90%;
+.btn-primary:hover, .btn-small:hover {
+    background: var(--accent-blue);
+    color: var(--bg-dark);
+    box-shadow: 0 0 1.25rem var(--accent-blue);
+    transform: translateY(-0.125rem);
 }
-dialog::backdrop { background: rgba(0, 0, 0, 0.8); }
-.dialog-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
 
-/* --- MENÚ SANDBOX --- */
-#sandbox-menu {
-    justify-content: flex-start; align-items: flex-start; padding: 10px;
+.btn-secondary {
+    background: hsla(345, 100%, 60%, 0.15);
+    border: 0.0625rem solid var(--accent-pink);
+    color: var(--accent-pink);
 }
+
+.btn-secondary:hover {
+    background: var(--accent-pink);
+    color: hsl(0, 0%, 100%);
+    box-shadow: 0 0 1.25rem var(--accent-pink);
+}
+
+.help-content {
+    text-align: center;
+    max-width: 28.125rem;
+    line-height: 1.6;
+    font-size: 1rem;
+    color: hsl(240, 20%, 85%);
+    margin-bottom: 1.25rem;
+}
+
+/* HUD Superior Centrado */
+#hud {
+    position: absolute;
+    top: 0.9375rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 1.35rem;
+    background: hsla(240, 50%, 8%, 0.65);
+    backdrop-filter: blur(0.375rem);
+    border: 0.0625rem solid hsla(185, 100%, 50%, 0.25);
+    padding: 0.5rem 1.4rem;
+    border-radius: 1.875rem;
+    box-shadow: 0 0.25rem 1.25rem hsla(0, 0%, 0%, 0.5);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.05rem;
+    z-index: 5;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.hud-item span {
+    color: var(--accent-blue);
+}
+
+/* Banner estético de Nueva Oleada */
+.wave-banner {
+    position: absolute;
+    top: 4.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.75rem 2.25rem;
+    background: linear-gradient(135deg, hsla(240, 55%, 10%, 0.82), hsla(265, 50%, 14%, 0.78));
+    backdrop-filter: blur(0.5rem);
+    border: 0.0625rem solid hsla(51, 100%, 50%, 0.55);
+    border-radius: 1rem;
+    box-shadow: 0 0.5rem 1.75rem hsla(0, 0%, 0%, 0.65), 0 0 1.25rem hsla(51, 100%, 50%, 0.25);
+    z-index: 6;
+    pointer-events: none;
+    text-align: center;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.wave-banner-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2rem;
+    color: var(--accent-blue);
+    text-transform: uppercase;
+}
+
+.wave-banner-title {
+    font-size: clamp(1.35rem, 3.2vw, 2rem);
+    font-weight: 800;
+    letter-spacing: 0.15rem;
+    background: linear-gradient(135deg, var(--accent-gold), hsl(35, 100%, 62%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 0.5rem hsla(51, 100%, 50%, 0.35));
+}
+
+.wave-banner-sub {
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.04rem;
+    color: hsl(240, 20%, 88%);
+}
+
 .sandbox-container {
-    display: flex; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.85);
-    padding: 8px; border: 2px solid var(--accent-blue); border-radius: 8px;
-    pointer-events: auto; margin-left: 50px; /* Deja espacio al botón Fullscreen */
-    max-width: calc(100vw - 70px); align-items: center;
+    display: flex;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+    padding: 0.625rem;
+    padding-left: 3.5rem;
+    background: hsla(0, 0%, 0%, 0.6);
+    border-radius: 0.5rem;
+    pointer-events: auto;
 }
-.sandbox-container .btn-small { height: 2.2rem; font-size: clamp(0.7rem, 2vw, 0.9rem); padding: 0 8px; }
-.btn-sandbox-exit { border-color: var(--accent-red) !important; color: var(--accent-red) !important; }
 
-/* OLEADA ANUNCIO */
-#wave-announcement {
-    position: absolute; top: 30%; left: 0; width: 100%;
-    text-align: center; pointer-events: none; z-index: 100;
+.sandbox-screen-override {
+    background: hsla(0, 0%, 0%, 0) !important;
+    pointer-events: none;
+    align-items: flex-start;
 }
-#wave-announcement h2 {
-    font-size: clamp(3rem, 8vw, 6rem); color: var(--accent-blue);
-    text-shadow: 0 0 20px var(--accent-blue), 0 0 40px var(--accent-blue); margin: 0;
+
+.sandbox-input {
+    width: 3.125rem;
+    background: hsla(0, 0%, 0%, 0.5);
+    color: var(--accent-blue);
+    border: 0.0625rem solid var(--accent-blue);
+    text-align: center;
+    outline: none;
+    height: 2.2rem;
 }
-@keyframes fadeOut {
-    0% { opacity: 1; transform: scale(0.8); }
-    10% { opacity: 1; transform: scale(1.1); }
-    20% { opacity: 1; transform: scale(1); }
-    80% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(1.5); }
+
+.pause-title {
+    color: var(--accent-gold);
+}
+
+.final-score-text {
+    color: var(--accent-gold);
+    font-weight: bold;
+}
+
+@media (max-width: 37.5em) {
+    #hud {
+        gap: 0.45rem;
+        padding: 0.4rem 0.65rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.02rem;
+    }
+
+    .wave-banner {
+        top: 4rem;
+        padding: 0.6rem 1.4rem;
+    }
+
+    .menu-box {
+        padding: 1.25rem 1.5rem;
+    }
 }

@@ -1,142 +1,145 @@
 export class UIManager {
-    constructor(elements) {
-        this.ui = elements;
-        this.easterEggCounter = 0;
-        this.lastAction = null;
+    constructor(uiElements = {}) {
+        if (Array.isArray(uiElements)) {
+            this.ui = {};
+            uiElements.forEach(id => {
+                this.ui[id] = document.getElementById(id);
+            });
+        } else {
+            this.ui = uiElements || {};
+        }
     }
 
-    bindButtons({ onStart, onRestart, onResume, onMainMenu, onConfirmMainMenu, onTogglePause, onOpenHelp, onCloseHelp, onStartSandbox, onCloseSandbox, onToggleAutoPilot, onTogglePlayer, onToggleAsteroids }) {
-        document.getElementById('btn-start').addEventListener('click', () => { 
-            this.resetEasterEgg(); 
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(() => {});
+    bindButtons(handlers) {
+        const addClick = (id, fn) => {
+            const el = document.getElementById(id);
+            if (el && fn) {
+                el.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    el.blur();
+                    fn();
+                });
             }
-            onStart(); 
-        });
-        
-        document.getElementById('btn-restart').addEventListener('click', () => { this.resetEasterEgg(); onRestart(); });
-        document.getElementById('btn-resume').addEventListener('click', () => { this.resetEasterEgg(); onResume(); });
-        document.getElementById('btn-main-menu').addEventListener('click', () => { this.resetEasterEgg(); onMainMenu(); });
-        
-        document.getElementById('btn-cancel-main-menu').addEventListener('click', () => { this.ui.mainMenuDialog.close(); });
-        document.getElementById('btn-confirm-main-menu').addEventListener('click', () => {
-            onConfirmMainMenu();
-            this.ui.mainMenuDialog.close();
-        });
-        document.getElementById('btn-pause-hud').addEventListener('click', onTogglePause);
-        
-        document.getElementById('btn-help').addEventListener('click', () => {
-            if (this.lastAction === 'close-help' || this.lastAction === null) this.easterEggCounter++;
-            else this.easterEggCounter = 1;
-            this.lastAction = 'open-help';
-            
-            if (this.easterEggCounter >= 5) {
-                this.resetEasterEgg();
-                onStartSandbox();
-            } else {
-                onOpenHelp();
-            }
-        });
-        
-        document.getElementById('btn-close-help').addEventListener('click', () => {
-            if (this.lastAction !== 'open-help') this.easterEggCounter = 0;
-            this.lastAction = 'close-help';
-            onCloseHelp();
-        });
+        };
 
-        // BOTONES SANDBOX FUNCIONALES
-        document.getElementById('btn-sandbox-auto').addEventListener('click', (e) => {
-            if(onToggleAutoPilot) {
-                const isAuto = onToggleAutoPilot();
-                e.target.textContent = `AUTO: ${isAuto ? 'ON' : 'OFF'}`;
-                e.target.style.color = isAuto ? '#ff3366' : '#00f3ff';
-                e.target.style.borderColor = isAuto ? '#ff3366' : '#00f3ff';
+        addClick('btn-start', handlers.onStart);
+        addClick('btn-help', handlers.onOpenHelp);
+        addClick('btn-close-help', handlers.onCloseHelp);
+        addClick('btn-pause', handlers.onTogglePause);
+        addClick('btn-resume', handlers.onResume);
+        addClick('btn-main-menu', handlers.onConfirmMainMenu || handlers.onMainMenu);
+        addClick('btn-restart', handlers.onRestart);
+        addClick('btn-gameover-menu', handlers.onConfirmMainMenu || handlers.onMainMenu);
+
+        addClick('btn-fullscreen', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
             }
         });
 
-        document.getElementById('btn-sandbox-player').addEventListener('click', (e) => {
-            if(onTogglePlayer) {
-                const isPlayerOn = onTogglePlayer();
-                e.target.textContent = `NAVE: ${isPlayerOn ? 'ON' : 'OFF'}`;
-                e.target.style.color = isPlayerOn ? '#00f3ff' : '#aaaaaa';
-                e.target.style.borderColor = isPlayerOn ? '#00f3ff' : '#aaaaaa';
-                
-                const btnAuto = document.getElementById('btn-sandbox-auto');
-                if (btnAuto) {
-                    btnAuto.style.display = isPlayerOn ? 'inline-flex' : 'none';
-                }
-            }
+        document.addEventListener('fullscreenchange', () => {
+            const enterIcon = document.getElementById('icon-fs-enter');
+            const exitIcon = document.getElementById('icon-fs-exit');
+            const isFull = Boolean(document.fullscreenElement);
+            if (enterIcon) enterIcon.classList.toggle('hidden', isFull);
+            if (exitIcon) exitIcon.classList.toggle('hidden', !isFull);
         });
 
-        document.getElementById('btn-sandbox-asteroids').addEventListener('click', (e) => {
-            if(onToggleAsteroids) {
-                const isRocas = onToggleAsteroids();
-                e.target.textContent = `ROCAS: ${isRocas ? 'ON' : 'OFF'}`;
-                e.target.style.color = isRocas ? '#ff9900' : '#00f3ff';
-                e.target.style.borderColor = isRocas ? '#ff9900' : '#00f3ff';
-            }
-        });
-
-        document.getElementById('btn-close-sandbox').addEventListener('click', () => {
-            if (onCloseSandbox) onCloseSandbox();
-        });
+        addClick('btn-sandbox-auto', () => handlers.onToggleAutoPilot && handlers.onToggleAutoPilot());
+        addClick('btn-sandbox-player', () => handlers.onTogglePlayer && handlers.onTogglePlayer());
+        addClick('btn-sandbox-asteroids', () => handlers.onToggleAsteroids && handlers.onToggleAsteroids());
+        addClick('btn-close-sandbox', handlers.onCloseSandbox);
     }
-
-    resetEasterEgg() {
-        this.easterEggCounter = 0;
-        this.lastAction = null;
-    }
-
-    setFinalScore(score) { document.getElementById('final-score').textContent = score; }
-    getDifficulty() { return document.querySelector('input[name="difficulty"]:checked').value; }
-    showMainMenuConfirmation() { this.ui.mainMenuDialog.showModal(); }
 
     updateVisibility(state) {
-        this.ui.mainMenu.classList.toggle('hidden', state !== 'MENU');
-        this.ui.helpMenu.classList.add('hidden');
-        this.ui.sandboxMenu.classList.toggle('hidden', state !== 'SANDBOX');
-        this.ui.pauseMenu.classList.toggle('hidden', state !== 'PAUSED');
-        this.ui.gameOver.classList.toggle('hidden', state !== 'GAMEOVER');
-        
-        const isPaused = state === 'PAUSED';
-        this.ui.pauseButton.classList.toggle('is-paused', isPaused);
-        this.ui.pauseButton.setAttribute('aria-label', isPaused ? 'Reanudar juego' : 'Pausar juego');
-        
-        if (state === 'PLAYING' || state === 'PAUSED') this.ui.hud.classList.remove('hidden');
-        else this.ui.hud.classList.add('hidden');
-        
-        if (state !== 'PLAYING') this.ui.waveAnnouncement.classList.add('hidden');
-    }
+        const screens = ['main-menu', 'help-screen', 'pause-screen', 'gameover-screen', 'sandbox-menu', 'hud', 'btn-pause', 'wave-banner'];
+        screens.forEach(s => {
+            const el = document.getElementById(s);
+            if (el) el.classList.add('hidden');
+        });
 
-    toggleHelp(isVisible) {
-        this.ui.mainMenu.classList.toggle('hidden', isVisible);
-        this.ui.helpMenu.classList.toggle('hidden', !isVisible);
+        if (state === 'MENU') {
+            document.getElementById('main-menu')?.classList.remove('hidden');
+        } else if (state === 'PLAYING') {
+            document.getElementById('hud')?.classList.remove('hidden');
+            document.getElementById('btn-pause')?.classList.remove('hidden');
+        } else if (state === 'PAUSED') {
+            document.getElementById('hud')?.classList.remove('hidden');
+            document.getElementById('btn-pause')?.classList.remove('hidden');
+            document.getElementById('pause-screen')?.classList.remove('hidden');
+        } else if (state === 'GAMEOVER') {
+            document.getElementById('gameover-screen')?.classList.remove('hidden');
+        } else if (state === 'SANDBOX') {
+            document.getElementById('hud')?.classList.remove('hidden');
+            document.getElementById('sandbox-menu')?.classList.remove('hidden');
+        }
     }
 
     renderHUD(game) {
-        if (game.state !== 'PLAYING') return;
-        this.ui.score.textContent = game.score;
-        this.ui.kills.textContent = game.waveKills;
-        this.ui.waveTarget.textContent = game.waveEnemiesTotal;
-        this.ui.wave.textContent = game.wave;
+        const scoreEl = document.getElementById('hud-score');
+        const enemiesEl = document.getElementById('hud-enemies');
+        const waveEl = document.getElementById('hud-wave');
+        const healthEl = document.getElementById('hud-health');
 
-        let hpPercent = (game.player.health / game.player.maxHealth) * 100;
-        this.ui.healthFill.style.width = `${hpPercent}%`;
-        
-        if (hpPercent < 30 || game.player.invulnerableFrames > 0) this.ui.healthFill.style.backgroundColor = '#ff3366';
-        else if (game.player.healDelay > 0) this.ui.healthFill.style.backgroundColor = '#aaaaaa'; 
-        else this.ui.healthFill.style.backgroundColor = '#00f3ff';
-
-        if (game.waveMessageTimer > 0) {
-            if (this.ui.waveAnnouncement.classList.contains('hidden')) {
-                this.ui.waveAnnouncement.classList.remove('hidden');
-                this.ui.waveText.textContent = `¡OLEADA ${game.wave}!`;
-                this.ui.waveText.style.animation = 'none';
-                void this.ui.waveText.offsetWidth;
-                this.ui.waveText.style.animation = 'fadeOut 3s forwards';
-            }
-        } else {
-            this.ui.waveAnnouncement.classList.add('hidden');
+        if (scoreEl) scoreEl.textContent = Math.floor(game.score || 0);
+        if (waveEl) waveEl.textContent = game.wave || 1;
+        if (enemiesEl) {
+            const remaining = game.state === 'SANDBOX'
+                ? game.enemies.length
+                : Math.max(game.enemies.length, (game.waveEnemiesTotal || 0) - (game.waveKills || 0));
+            enemiesEl.textContent = remaining;
         }
+        if (healthEl && game.player) {
+            const pct = Math.max(0, Math.round((game.player.health / game.player.maxHealth) * 100));
+            healthEl.textContent = pct;
+        }
+
+        const bannerEl = document.getElementById('wave-banner');
+        if (bannerEl) {
+            if (game.state === 'PLAYING' && game.waveMessageTimer > 0) {
+                const titleEl = document.getElementById('wave-banner-title');
+                const subEl = document.getElementById('wave-banner-sub');
+                const waveNum = game.wave || 1;
+                if (titleEl) titleEl.textContent = `OLEADA ${waveNum}`;
+                if (subEl) {
+                    subEl.textContent = waveNum === 1
+                        ? '¡Escudos activos — Elimina a los invasores!'
+                        : `¡Refuerzos enemigos en camino (${game.waveEnemiesTotal} naves)!`;
+                }
+                const fadeAlpha = Math.min(1, game.waveMessageTimer / 35);
+                bannerEl.style.opacity = fadeAlpha.toFixed(2);
+                bannerEl.classList.remove('hidden');
+            } else {
+                bannerEl.classList.add('hidden');
+            }
+        }
+    }
+
+    toggleHelp(show) {
+        const help = document.getElementById('help-screen');
+        const menu = document.getElementById('main-menu');
+        if (show) {
+            help?.classList.remove('hidden');
+            menu?.classList.add('hidden');
+        } else {
+            help?.classList.add('hidden');
+            menu?.classList.remove('hidden');
+        }
+    }
+
+    showMainMenuConfirmation() {
+        this.updateVisibility('MENU');
+    }
+
+    setFinalScore(score) {
+        const el = document.getElementById('final-score');
+        if (el) el.textContent = Math.floor(score || 0);
+    }
+
+    getDifficulty() {
+        return 'normal';
     }
 }

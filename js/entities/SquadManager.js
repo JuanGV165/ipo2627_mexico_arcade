@@ -6,17 +6,26 @@ export class SquadManager {
         this.mh = mapHeight;
         this.speedMultiplier = 1;
         this.leader = { x: mapWidth - 200, y: 200, angle: 0, speed: 2.0 };
+        this.subLeaders = []; 
+        
         this.tacticalMemory = {
-            'DYNAMIC_V': 20, 'SNAKE_COLUMN': 10, 'PINCER_SQUAD': 10
+            'DYNAMIC_V': 20, 'SNAKE_COLUMN': 10, 'PINCER_SQUAD': 10, 'RING_FIVE': 10
         };
         this.currentChoreo = 'DYNAMIC_V';
         this.activeTactic = 'DYNAMIC_V';
+        this.prevTactic = 'DYNAMIC_V';
+        this.transitionTimer = 0; 
+        
         this.choreoTimer = 900; 
         this.choreoPhaseAngle = 0;
         
         this.isAntiCharge = false;
-        this.isHarassing = false;
-        this.turretTimer = 0; 
+        this.turretTimer = 0;
+        this.circleMoveTimer = 0;
+        this.antiTurretHold = 0;
+        this.lastPlayerAngle = null;
+        this.lastTurnDir = 0;
+        this.pathHistory = []; 
     }
 
     wrap(entity) {
@@ -38,6 +47,9 @@ export class SquadManager {
     }
 
     update(player, enemies, bullets, asteroids, enemyBullets, wave, forcedTactic = null) {
+        this.pathHistory.unshift({ x: this.leader.x, y: this.leader.y, angle: this.leader.angle });
+        if (this.pathHistory.length > 300) this.pathHistory.pop();
+
         this.choreoTimer--;
         this.choreoPhaseAngle += 0.012; 
         if (this.choreoTimer <= 0) {
@@ -47,6 +59,8 @@ export class SquadManager {
 
         const phase = (this.choreoTimer > 300) ? 'SETUP' : 'STRIKE';
         const isGhost = player.isGhost === true; 
+        const isSandbox = (forcedTactic !== null);
+        const totalEnemies = enemies.length;
 
         let dx = player.x - this.leader.x;
         if (dx > this.mw / 2) dx -= this.mw; else if (dx < -this.mw / 2) dx += this.mw;
@@ -57,71 +71,102 @@ export class SquadManager {
         let pSpeedSq = player.vx * player.vx + player.vy * player.vy;
         let pVelNormX = player.vx / (Math.sqrt(pSpeedSq) || 1);
         let pVelNormY = player.vy / (Math.sqrt(pSpeedSq) || 1);
-        let pDirX = Math.cos(player.angle);
-        let pDirY = Math.sin(player.angle);
         
         let toLeaderNormX = -dx / distToPlayer; 
         let toLeaderNormY = -dy / distToPlayer;
-        
-        let dotProductAim = (pVelNormX * pDirX) + (pVelNormY * pDirY);
         let dotProductLeader = (pVelNormX * toLeaderNormX) + (pVelNormY * toLeaderNormY);
 
-        if (forcedTactic) {
+        if (isSandbox || totalEnemies === 1) {
             this.isAntiCharge = false;
-            this.isHarassing = false;
         } else {
-            if (wave <= 5 || isGhost) {
+            if (wave < 4 || isGhost) {
                 this.isAntiCharge = false;
-                this.isHarassing = false;
             } else {
-                this.isAntiCharge = (dotProductLeader > 0.65 && pSpeedSq > 3.0 && distToPlayer < 750);
-                this.isHarassing = (distToPlayer > 650);
+                this.isAntiCharge = (dotProductLeader > 0.65 && pSpeedSq > 2.5 && distToPlayer < 700);
             }
         }
         
-        if (player.spinAccumulator > 0.05 && player.isShooting && !isGhost) {
-            this.turretTimer++;
+        // Detección de patrón torreta (girar sobre sí mismo) y giro continuo en círculo (avance + giro lateral)
+        let dAngle = 0;
+        if (this.lastPlayerAngle !== null && !isGhost) {
+            dAngle = Math.atan2(Math.sin(player.angle - this.lastPlayerAngle), Math.cos(player.angle - this.lastPlayerAngle));
+        }
+        this.lastPlayerAngle = player.angle;
+
+        const absDAngle = Math.abs(dAngle);
+        const turnDir = absDAngle > 0.015 ? Math.sign(dAngle) : 0;
+
+        if (!isGhost && totalEnemies > 1) {
+            // 1. Giro sobre sí mismo (con o sin disparo)
+            if ((player.spinAccumulator > 0.045 || absDAngle > 0.035) && pSpeedSq < 2.2) {
+                this.turretTimer += player.isShooting ? 1.6 : 1.1;
+            } else {
+                this.turretTimer = Math.max(0, this.turretTimer - 1.5);
+            }
+
+            // 2. Movimiento en círculo manteniendo avance + giro lateral durante > ~2.5 segundos (150 frames)
+            const holdingForwardAndTurn = (player.isThrustingInput && player.isTurningInput && turnDir !== 0) ||
+                                          (turnDir !== 0 && absDAngle > 0.02 && pSpeedSq > 1.2);
+            if (holdingForwardAndTurn && (this.lastTurnDir === 0 || turnDir === this.lastTurnDir)) {
+                this.circleMoveTimer++;
+                this.lastTurnDir = turnDir;
+            } else {
+                this.circleMoveTimer = Math.max(0, this.circleMoveTimer - 2);
+                if (this.circleMoveTimer === 0) this.lastTurnDir = 0;
+            }
         } else {
             this.turretTimer = 0;
+            this.circleMoveTimer = 0;
+            this.lastTurnDir = 0;
         }
 
-        let isTurret = (!forcedTactic && wave > 5 && !isGhost) && ((player.spinAccumulator > 0.08 && player.isShooting && pSpeedSq < 1.0) || (this.turretTimer > 90));
-        let isStraightCharge = (!forcedTactic && wave > 5 && !isGhost) && (pSpeedSq > 3.5 && player.isShooting && dotProductAim > 0.80);
+        const detectedTurretOrCircle = (!isSandbox && wave >= 2 && !isGhost && totalEnemies > 1) &&
+            ((player.spinAccumulator > 0.075 && player.isShooting && pSpeedSq < 1.2) ||
+             this.turretTimer > 85 ||
+             this.circleMoveTimer > 150);
 
-        this.activeTactic = forcedTactic ? forcedTactic : this.currentChoreo;
-        if (!forcedTactic) {
-            if (isTurret) this.activeTactic = 'ANTI_TURRETS';
-            else if (isStraightCharge && this.activeTactic === 'V_QUINTET') this.activeTactic = 'DUAL_SNAKE';
-            else if (isStraightCharge || this.isAntiCharge) this.activeTactic = 'SPLIT_FLANKS';
+        if (detectedTurretOrCircle) {
+            this.antiTurretHold = Math.max(this.antiTurretHold, 150);
+        } else if (this.antiTurretHold > 0) {
+            this.antiTurretHold--;
         }
+
+        let isTurret = (!isSandbox && wave >= 2 && !isGhost && totalEnemies > 1) &&
+            (detectedTurretOrCircle || this.antiTurretHold > 0);
+
+        // Prioridad táctica: ANTI_TURRETS prevalece sobre choreo estándar y anti-charge
+        let newTactic = isSandbox ? forcedTactic : this.currentChoreo;
+        if (!isSandbox) {
+            if (isTurret) newTactic = 'ANTI_TURRETS';
+            else if (this.isAntiCharge) newTactic = 'PINCER_SQUAD';
+        }
+
+        if (this.activeTactic !== newTactic) {
+            this.transitionTimer = 90; 
+            this.prevTactic = this.activeTactic;
+            this.activeTactic = newTactic;
+        }
+        if (this.transitionTimer > 0) this.transitionTimer--;
 
         let groupEvadeX = 0, groupEvadeY = 0;
-        
-        for (let i = 0; i < bullets.length; i++) {
-            let b = bullets[i];
-            let bdx = this.leader.x - b.x;
-            if (bdx > this.mw / 2) bdx -= this.mw; else if (bdx < -this.mw / 2) bdx += this.mw;
-            let bdy = this.leader.y - b.y;
-            if (bdy > this.mh / 2) bdy -= this.mh; else if (bdy < -this.mh / 2) bdy += this.mh;
-            if (bdx * bdx + bdy * bdy < 22500) {
-                groupEvadeX += bdy * 0.03; groupEvadeY -= bdx * 0.03; 
-            }
-        }
-        
         for (let i = 0; i < asteroids.length; i++) {
             let a = asteroids[i];
             let adx = this.leader.x - a.x;
             if (adx > this.mw / 2) adx -= this.mw; else if (adx < -this.mw / 2) adx += this.mw;
             let ady = this.leader.y - a.y;
             if (ady > this.mh / 2) ady -= this.mh; else if (ady < -this.mh / 2) ady += this.mh;
-            if (adx * adx + ady * ady < 60000) {
-                groupEvadeX += ady * 0.02; groupEvadeY -= adx * 0.02; 
+            let distSq = adx*adx + ady*ady;
+            if (distSq < 250000) { 
+                let dist = Math.sqrt(distSq);
+                let push = (1 - (dist / 500)) * 6;
+                groupEvadeX += (adx/dist) * push; 
+                groupEvadeY += (ady/dist) * push; 
             }
         }
 
         let targetAngle = Math.atan2(dy, dx);
-        if (this.isAntiCharge) {
-            targetAngle += Math.PI / 1.5; 
+        if (this.isAntiCharge && !isTurret) {
+            targetAngle += Math.PI; 
             this.leader.speed += (1.5 * this.speedMultiplier - this.leader.speed) * 0.05;
         } else if (phase === 'SETUP') {
             if (distToPlayer > 400) targetAngle += 0.3; 
@@ -135,9 +180,10 @@ export class SquadManager {
 
         let diffAngle = targetAngle - this.leader.angle;
         diffAngle = Math.atan2(Math.sin(diffAngle), Math.cos(diffAngle));
-        this.leader.angle += diffAngle * 0.025; 
+        let maxLeaderTurn = (this.activeTactic === 'SNAKE_COLUMN' || this.activeTactic === 'DUAL_SNAKE') ? 0.012 : 0.025;
+        this.leader.angle += Math.max(-maxLeaderTurn, Math.min(maxLeaderTurn, diffAngle));
 
-        if (!this.isAntiCharge) {
+        if (!this.isAntiCharge || isTurret) {
             const targetLeaderSpeed = (phase === 'SETUP' ? 1.8 : 2.5 + (wave * 0.05)) * this.speedMultiplier;
             this.leader.speed += (targetLeaderSpeed - this.leader.speed) * 0.05;
         }
@@ -149,163 +195,289 @@ export class SquadManager {
 
         const cosL = Math.cos(this.leader.angle);
         const sinL = Math.sin(this.leader.angle);
-        const totalEnemies = enemies.length;
+
+        let isV = (this.activeTactic === 'V_QUINTET' || this.activeTactic === 'DYNAMIC_V');
+        let groupSize = this.activeTactic === 'V_QUINTET' ? 5 : 3;
+        let numGroups = Math.ceil(totalEnemies / groupSize);
+
+        if (isV) {
+            for (let g = 1; g < numGroups; g++) {
+                if (!this.subLeaders[g]) {
+                    this.subLeaders[g] = { 
+                        x: this.leader.x + (Math.random()-0.5)*200, 
+                        y: this.leader.y + (Math.random()-0.5)*200, 
+                        angle: this.leader.angle, speed: this.leader.speed 
+                    };
+                }
+                let sl = this.subLeaders[g];
+                let pdx = player.x - sl.x; if (pdx > this.mw/2) pdx -= this.mw; else if (pdx < -this.mw/2) pdx += this.mw;
+                let pdy = player.y - sl.y; if (pdy > this.mh/2) pdy -= this.mh; else if (pdy < -this.mh/2) pdy += this.mh;
+                let pDist = Math.hypot(pdx, pdy);
+                
+                let slEvadeX = 0, slEvadeY = 0;
+                for (let a of asteroids) {
+                    let adx = sl.x - a.x; if (adx > this.mw/2) adx -= this.mw; else if (adx < -this.mw/2) adx += this.mw;
+                    let ady = sl.y - a.y; if (ady > this.mh/2) ady -= this.mh; else if (ady < -this.mh/2) ady += this.mh;
+                    let distSq = adx*adx + ady*ady;
+                    if (distSq < 360000) { 
+                        let dist = Math.sqrt(distSq);
+                        let push = (1 - (dist / 600)) * 12;
+                        slEvadeX += (adx/dist) * push; 
+                        slEvadeY += (ady/dist) * push; 
+                    }
+                }
+
+                let slTargetAngle = Math.atan2(pdy, pdx); 
+                let side = (g % 2 !== 0) ? 1 : -1;
+                if (pDist > 300) slTargetAngle += 0.8 * side; 
+                slTargetAngle = Math.atan2(Math.sin(slTargetAngle) + slEvadeY, Math.cos(slTargetAngle) + slEvadeX);
+
+                let slDiff = slTargetAngle - sl.angle;
+                slDiff = Math.atan2(Math.sin(slDiff), Math.cos(slDiff));
+                sl.angle += Math.max(-0.035, Math.min(0.035, slDiff)); 
+                
+                let tSpeed = (pDist < 250) ? 2.0 : (3.0 + wave * 0.05);
+                sl.speed += (tSpeed * this.speedMultiplier - sl.speed) * 0.1;
+                sl.x += Math.cos(sl.angle) * sl.speed;
+                sl.y += Math.sin(sl.angle) * sl.speed;
+                this.wrap(sl);
+            }
+        }
 
         for (let index = 0; index < totalEnemies; index++) {
             let enemy = enemies[index];
             if (enemy.invulnerableTimer > 0) enemy.invulnerableTimer--;
 
-            let slotX, slotY;
+            let groupIdx = Math.floor(index / groupSize);
+            let localIdx = index % groupSize;
+            let isTail = false; 
+            let shipsInLastGroup = totalEnemies % groupSize;
+            
+            if (isV && groupIdx === Math.floor(totalEnemies / groupSize) && shipsInLastGroup > 0 && shipsInLastGroup < 3) {
+                isTail = true; 
+            }
+
+            let anchorX = this.leader.x;
+            let anchorY = this.leader.y;
+            let anchorAngle = this.leader.angle;
+            let isSubLeader = false;
+
+            if (isV && groupIdx > 0 && !isTail) {
+                let subLeader = enemies[groupIdx * groupSize];
+                if (localIdx === 0) isSubLeader = true;
+                else if (subLeader) {
+                    anchorX = subLeader.x;
+                    anchorY = subLeader.y;
+                    anchorAngle = subLeader.angle;
+                }
+            }
+
+            let cosA = Math.cos(anchorAngle);
+            let sinA = Math.sin(anchorAngle);
+            let relX = 0, relY = 0;
+            let slotX = enemy.x, slotY = enemy.y;
             let overrideSpeed = null;
-            let overrideTurn = 0.05; 
+            let overrideTurn = 0.08;
 
             if (this.activeTactic === 'ANTI_TURRETS') {
-                let safeRadius = 500;
+                let safeRadius = 460;
                 let step = (Math.PI * 2) / Math.max(1, totalEnemies);
-                let orbitAngle = (step * index) + (this.choreoPhaseAngle * 0.3);
+                // Orbitar en sentido opuesto al giro del jugador para romper su seguimiento circular
+                let counterDir = this.lastTurnDir !== 0 ? -this.lastTurnDir : 1;
+                let orbitAngle = (step * index) + (this.choreoPhaseAngle * 0.45 * counterDir);
                 slotX = player.x + Math.cos(orbitAngle) * safeRadius;
                 slotY = player.y + Math.sin(orbitAngle) * safeRadius;
+                overrideTurn = 0.095;
             } 
             else if (this.activeTactic === 'SPLIT_FLANKS') {
                 let side = (index % 2 === 0) ? 1 : -1;
                 let flankDistance = 350 + (Math.floor(index/2) * 40);
                 slotX = player.x + Math.cos(player.angle + (Math.PI/2 * side)) * flankDistance + Math.cos(player.angle)*150;
                 slotY = player.y + Math.sin(player.angle + (Math.PI/2 * side)) * flankDistance + Math.sin(player.angle)*150;
-                overrideSpeed = 3.5 + (wave * 0.1);
             } 
-            else if (this.activeTactic === 'DUAL_SNAKE') {
+            else if (this.activeTactic === 'SNAKE_COLUMN' || this.activeTactic === 'DUAL_SNAKE') {
+                let row = this.activeTactic === 'DUAL_SNAKE' ? Math.floor(index / 2) : index;
                 let side = (index % 2 === 0) ? 1 : -1;
-                let row = Math.floor(index / 2);
-                let relX = -row * 35;
-                let relY = side * 120 + Math.sin(this.choreoPhaseAngle * 4 - row * 0.5) * 20;
-                slotX = this.leader.x + (relX * cosL - relY * sinL);
-                slotY = this.leader.y + (relX * sinL + relY * cosL);
+                let delay = row * 12; 
+                if (delay >= this.pathHistory.length) delay = this.pathHistory.length - 1;
+                let hist = this.pathHistory[delay];
+                if (hist) {
+                    if (this.activeTactic === 'DUAL_SNAKE') {
+                        slotX = hist.x + Math.cos(hist.angle + Math.PI/2 * side) * 45;
+                        slotY = hist.y + Math.sin(hist.angle + Math.PI/2 * side) * 45;
+                    } else {
+                        slotX = hist.x; slotY = hist.y;
+                    }
+                } else {
+                    slotX = this.leader.x; slotY = this.leader.y;
+                }
             }
             else {
-                let relX = 0, relY = 0;
-                
-                if (this.activeTactic === 'SNAKE_COLUMN') {
-                    relX = -index * 30; 
-                    relY = Math.sin(this.choreoPhaseAngle * 3.0 - index * 0.4) * 45;
-                } 
-                else if (this.activeTactic === 'PINCER_SQUAD') {
+                if (this.activeTactic === 'PINCER_SQUAD') {
                     let side = (index % 2 === 0) ? 1 : -1;
                     let row = Math.floor(index / 2);
-                    let pincerAngle = player.angle + (Math.PI/2 * side);
-                    slotX = player.x + Math.cos(pincerAngle) * (200 + row*40) + Math.cos(player.angle) * (150 - row*60);
-                    slotY = player.y + Math.sin(pincerAngle) * (200 + row*40) + Math.sin(player.angle) * (150 - row*60);
-                    overrideSpeed = 4.0;
-                    overrideTurn = 0.08; 
+                    let pincerAngle = player.angle + (Math.PI/2 * side) - (0.15 * side * row);
+                    slotX = player.x + Math.cos(pincerAngle) * (220 + row*45) + Math.cos(player.angle) * (120 - row*50);
+                    slotY = player.y + Math.sin(pincerAngle) * (220 + row*45) + Math.sin(player.angle) * (120 - row*50);
                 } 
-                else if (this.activeTactic === 'V_QUINTET') {
-                    let spacingX = 40; 
-                    let spacingY = 35; 
-                    if (index === 0) { relX = 0; relY = 0; }
-                    else {
-                        let row = Math.ceil(index / 2);
-                        let side = index % 2 === 0 ? 1 : -1;
-                        relX = -row * spacingX;
-                        relY = side * row * spacingY;
-                    }
-                }
                 else if (this.activeTactic === 'RING_FIVE') {
-                    let step = (Math.PI * 2 / Math.max(1, totalEnemies)) * index + this.choreoPhaseAngle;
+                    let step = (Math.PI * 2 / Math.max(1, totalEnemies)) * index + (this.choreoPhaseAngle * 0.8);
                     slotX = player.x + Math.cos(step) * 250;
                     slotY = player.y + Math.sin(step) * 250;
-                    overrideSpeed = 3.5;
                 }
-                else { // DYNAMIC_V
-                    let groupIndex = Math.floor(index / 3); 
-                    let posInV = index % 3; 
-                    let baseX = 0, baseY = 0;
-                    
-                    if (groupIndex === 1) { baseX = -80; baseY = -100; } 
-                    else if (groupIndex === 2) { baseX = -80; baseY = 100; } 
-                    else if (groupIndex === 3) { baseX = -160; baseY = 0; } 
-                    else if (groupIndex > 3) { 
-                        baseX = -160 - Math.floor((groupIndex-4)/2) * 80; 
-                        baseY = (groupIndex % 2 === 0 ? 1 : -1) * (100 + Math.floor((groupIndex-4)/2)*100); 
+                else if (isV) {
+                    if (isTail) {
+                        let prevGroupLeaderIdx = (groupIdx - 1) * groupSize;
+                        let prevAnchor = enemies[prevGroupLeaderIdx] || this.leader;
+                        relX = -120 - (localIdx * 45); 
+                        relY = 0;
+                        slotX = prevAnchor.x + (relX * Math.cos(prevAnchor.angle) - relY * Math.sin(prevAnchor.angle));
+                        slotY = prevAnchor.y + (relX * Math.sin(prevAnchor.angle) + relY * Math.cos(prevAnchor.angle));
+                        overrideTurn = 0.04; 
                     }
-                    
-                    let localX = 0, localY = 0;
-                    if (posInV === 1) { localX = -35; localY = -35; }
-                    if (posInV === 2) { localX = -35; localY = 35; }
-                    
-                    relX = baseX + localX;
-                    relY = baseY + localY;
-                }
-                
-                if (this.activeTactic !== 'PINCER_SQUAD' && this.activeTactic !== 'RING_FIVE' && this.activeTactic !== 'ANTI_TURRETS' && this.activeTactic !== 'SPLIT_FLANKS') {
-                    slotX = this.leader.x + (relX * cosL - relY * sinL);
-                    slotY = this.leader.y + (relX * sinL + relY * cosL);
+                    else if (isSubLeader) {
+                        let side = groupIdx % 2 === 0 ? 1 : -1;
+                        let tier = Math.ceil(groupIdx / 2);
+                        let flankX = (-180 * tier);     
+                        let flankY = (side * 220 * tier); 
+                        slotX = this.leader.x + (flankX * cosL - flankY * sinL);
+                        slotY = this.leader.y + (flankX * sinL + flankY * cosL);
+                        overrideSpeed = this.leader.speed + 0.5; 
+                    } 
+                    else {
+                        let spacingX = 45; 
+                        let spacingY = 40; 
+                        if (this.activeTactic === 'DYNAMIC_V') { spacingX = 40; spacingY = 45; }
+                        if (localIdx === 0) { relX = 0; relY = 0; } 
+                        else {
+                            if (this.activeTactic === 'DYNAMIC_V') {
+                                let side = localIdx === 1 ? -1 : 1; 
+                                relX = -spacingX;
+                                relY = side * spacingY;
+                            } else {
+                                let row = Math.ceil(localIdx / 2);
+                                let side = localIdx % 2 === 0 ? 1 : -1;
+                                relX = -row * spacingX;
+                                relY = side * row * spacingY;
+                            }
+                        }
+                        slotX = anchorX + (relX * cosA - relY * sinA);
+                        slotY = anchorY + (relX * sinA + relY * cosA);
+                    }
                 }
             }
 
             if (enemy.evadeTimer > 0) enemy.evadeTimer--;
 
-            // --- RADAR DE EVASIÓN INDIVIDUAL DE ROCAS ---
-            let rockEvadeX = 0, rockEvadeY = 0;
+            let threateningAsteroids = [];
+            let pdxE = enemy.x - player.x; if (pdxE > this.mw / 2) pdxE -= this.mw; else if (pdxE < -this.mw / 2) pdxE += this.mw;
+            let pdyE = enemy.y - player.y; if (pdyE > this.mh / 2) pdyE -= this.mh; else if (pdyE < -this.mh / 2) pdyE += this.mh;
+            let pDistSq = pdxE*pdxE + pdyE*pdyE;
+            
+            if (pDistSq < 14400 && !isGhost && totalEnemies > 1) { 
+                threateningAsteroids.push({ a: player, adx: pdxE, ady: pdyE, distSq: pDistSq, safeZone: 150, isPlayer: true });
+            }
+
             for (let i = 0; i < asteroids.length; i++) {
                 let a = asteroids[i];
-                let adx = enemy.x - a.x;
+                let adx = enemy.x - a.x; 
                 if (adx > this.mw / 2) adx -= this.mw; else if (adx < -this.mw / 2) adx += this.mw;
                 let ady = enemy.y - a.y;
                 if (ady > this.mh / 2) ady -= this.mh; else if (ady < -this.mh / 2) ady += this.mh;
-                let distSq = adx * adx + ady * ady;
-                if (distSq < 25000) { // Si una roca está a menos de ~150px
-                    rockEvadeX += ady * 0.1; 
-                    rockEvadeY -= adx * 0.1;
-                    enemy.evadeTimer = 20; // Se apartan temporalmente
+                let distSq = adx*adx + ady*ady;
+                let safeZone = a.radius + 90; 
+                if (distSq < safeZone * safeZone) {
+                    threateningAsteroids.push({ a, adx, ady, distSq, safeZone });
                 }
             }
 
-            let pdx = player.x - enemy.x;
-            if (pdx > this.mw / 2) pdx -= this.mw; else if (pdx < -this.mw / 2) pdx += this.mw;
-            let pdy = player.y - enemy.y;
-            if (pdy > this.mh / 2) pdy -= this.mh; else if (pdy < -this.mh / 2) pdy += this.mh;
-            let pDistSqE = pdx * pdx + pdy * pdy;
-
+            let eAngle;
             let targetX = slotX, targetY = slotY;
             let edx = targetX - enemy.x;
             if (edx > this.mw / 2) edx -= this.mw; else if (edx < -this.mw / 2) edx += this.mw;
             let edy = targetY - enemy.y;
             if (edy > this.mh / 2) edy -= this.mh; else if (edy < -this.mh / 2) edy += this.mh;
 
-            let isRigidFormation = (this.activeTactic === 'V_QUINTET' || this.activeTactic === 'DYNAMIC_V' || this.activeTactic === 'SNAKE_COLUMN' || this.activeTactic === 'DUAL_SNAKE');
+            let isSnake = (this.activeTactic === 'SNAKE_COLUMN' || this.activeTactic === 'DUAL_SNAKE');
 
-            if (enemy.evadeTimer > 0) {
-                // Si están esquivando una roca, priorizan el desvío y luego vuelven a su ranura
-                let eAngle = Math.atan2(edy + rockEvadeY, edx + rockEvadeX);
-                let eDiff = eAngle - enemy.angle;
-                enemy.angle += Math.atan2(Math.sin(eDiff), Math.cos(eDiff)) * 0.1; 
-                enemy.speed = 3.5 * this.speedMultiplier;
-            } else {
-                let distToSlot = Math.hypot(edx, edy);
-                let eAngle = Math.atan2(edy, edx); 
-                
-                // Anclaje rígido pero con inercia muy suave (cero trompos)
-                if (isRigidFormation && distToSlot < 35) {
-                    enemy.angle += (this.leader.angle - enemy.angle) * 0.1; // Se alinean progresivamente con el líder
-                    enemy.speed = this.leader.speed;
-                    enemy.x += edx * 0.2; 
-                    enemy.y += edy * 0.2;
+            if (threateningAsteroids.length >= 2) {
+                let avgX = 0, avgY = 0;
+                for (let t of threateningAsteroids) { avgX += t.a.x; avgY += t.a.y; }
+                avgX /= threateningAsteroids.length; avgY /= threateningAsteroids.length;
+                let escapeAngle = Math.atan2(enemy.y - avgY, enemy.x - avgX);
+                let eDiff = escapeAngle - enemy.angle;
+                enemy.angle += Math.atan2(Math.sin(eDiff), Math.cos(eDiff)) * 0.3; 
+                enemy.speed = this.leader.speed + 3.0; 
+                enemy.evadeTimer = 30;
+            } 
+            else if (threateningAsteroids.length === 1) {
+                let threat = threateningAsteroids[0];
+                let angleToAst = Math.atan2(-threat.ady, -threat.adx); 
+                let tang1 = angleToAst + Math.PI/1.8; 
+                let tang2 = angleToAst - Math.PI/1.8; 
+                let bestEscapeAngle;
+
+                if (isV && !isSubLeader && !isTail && localIdx > 0 && !threat.isPlayer) {
+                    let wingSide = (localIdx % 2 === 0) ? 1 : -1;
+                    if (this.activeTactic === 'DYNAMIC_V') wingSide = localIdx === 1 ? -1 : 1;
+                    bestEscapeAngle = wingSide === 1 ? tang1 : tang2;
                 } else {
-                    let eDiff = eAngle - enemy.angle;
-                    enemy.angle += Math.atan2(Math.sin(eDiff), Math.cos(eDiff)) * overrideTurn;
-                    
-                    let eTargetSpeed = overrideSpeed !== null ? overrideSpeed : this.leader.speed;
-                    
-                    if (phase === 'STRIKE' && index === 0 && overrideSpeed === null) {
-                        eTargetSpeed = (!forcedTactic && wave <= 5) ? 2.5 : 3.2 + (wave * 0.1);
-                    } else if (isRigidFormation && overrideSpeed === null) {
-                        eTargetSpeed = this.leader.speed + Math.min(3.5, distToSlot * 0.08); 
-                    }
-                    
-                    eTargetSpeed *= this.speedMultiplier;
-                    eTargetSpeed = Math.max(1.0 * this.speedMultiplier, eTargetSpeed);
-                    // Inercia suave (0.12) para evitar balanceos bruscos
-                    enemy.speed += (eTargetSpeed - enemy.speed) * 0.12; 
+                    let diff1 = Math.abs(Math.atan2(Math.sin(tang1 - enemy.angle), Math.cos(tang1 - enemy.angle)));
+                    let diff2 = Math.abs(Math.atan2(Math.sin(tang2 - enemy.angle), Math.cos(tang2 - enemy.angle)));
+                    bestEscapeAngle = (diff1 < diff2) ? tang1 : tang2;
                 }
+                
+                let eDiff = bestEscapeAngle - enemy.angle;
+                enemy.angle += Math.atan2(Math.sin(eDiff), Math.cos(eDiff)) * 0.15;
+                enemy.speed = this.leader.speed + 1.5;
+                enemy.evadeTimer = 10;
+            } 
+            else {
+                let distToSlot = Math.hypot(edx, edy);
+                let baseAngle = anchorAngle;
+                if (this.activeTactic === 'ANTI_TURRETS') {
+                    // Apuntar hacia el centro del anillo (jugador) mientras orbitan el perímetro
+                    let pdxCenter = player.x - enemy.x;
+                    if (pdxCenter > this.mw / 2) pdxCenter -= this.mw; else if (pdxCenter < -this.mw / 2) pdxCenter += this.mw;
+                    let pdyCenter = player.y - enemy.y;
+                    if (pdyCenter > this.mh / 2) pdyCenter -= this.mh; else if (pdyCenter < -this.mh / 2) pdyCenter += this.mh;
+                    baseAngle = Math.atan2(pdyCenter, pdxCenter);
+                } else if (isSnake) {
+                    let delay = index * 12;
+                    if (this.activeTactic === 'DUAL_SNAKE') delay = Math.floor(index/2) * 12;
+                    if (delay >= this.pathHistory.length) delay = this.pathHistory.length - 1;
+                    if (this.pathHistory[delay]) baseAngle = this.pathHistory[delay].angle;
+                }
+
+                if (distToSlot > 100) eAngle = Math.atan2(edy, edx); 
+                else {
+                    let weight = distToSlot / 100; 
+                    let slotAngle = Math.atan2(edy, edx);
+                    let tx = Math.cos(slotAngle) * weight + Math.cos(baseAngle) * (1 - weight);
+                    let ty = Math.sin(slotAngle) * weight + Math.sin(baseAngle) * (1 - weight);
+                    eAngle = Math.atan2(ty, tx);
+                    if (distToSlot < 30) {
+                        enemy.x += edx * 0.15;
+                        enemy.y += edy * 0.15;
+                    }
+                }
+
+                let eDiff = eAngle - enemy.angle;
+                enemy.angle += Math.max(-overrideTurn, Math.min(overrideTurn, Math.atan2(Math.sin(eDiff), Math.cos(eDiff))));
+                
+                let eTargetSpeed = overrideSpeed !== null ? overrideSpeed : this.leader.speed;
+                if (!isSandbox && totalEnemies === 1 && wave <= 8 && phase === 'STRIKE') {
+                    eTargetSpeed = 1.8;
+                    overrideTurn = 0.04; 
+                } else if (phase === 'STRIKE' && index === 0 && overrideSpeed === null && this.activeTactic !== 'ANTI_TURRETS') {
+                    eTargetSpeed = (!forcedTactic && wave <= 5) ? 2.5 : 3.2 + (wave * 0.1);
+                } else if (distToSlot > 15 && overrideSpeed === null) {
+                    eTargetSpeed = this.leader.speed + Math.min(3.5, distToSlot * 0.05); 
+                }
+                
+                eTargetSpeed *= this.speedMultiplier;
+                eTargetSpeed = Math.max(1.0 * this.speedMultiplier, eTargetSpeed);
+                enemy.speed += (eTargetSpeed - enemy.speed) * 0.15; 
             }
 
             enemy.x += Math.cos(enemy.angle) * enemy.speed;
@@ -314,47 +486,98 @@ export class SquadManager {
 
             if (enemy.cooldown > 0) enemy.cooldown--;
             
-            // --- ESTRATEGIAS DE DISPARO ---
             let shouldFire = false;
             let shootAngle = enemy.angle; 
             let spread = 0.05;
+            let canShootAsteroids = ['DYNAMIC_V', 'V_QUINTET', 'ANTI_TURRETS', 'RING_FIVE'].includes(this.activeTactic);
+            let asteroidTargetAngle = null;
 
-            // 1. CORTINA DE FUEGO (V Formations)
-            if (this.activeTactic === 'V_QUINTET' || this.activeTactic === 'DYNAMIC_V') {
-                shootAngle = this.leader.angle;
-                spread = 0.05;
-                let angleToP = Math.atan2(pdy, pdx);
-                let diffToLeader = Math.abs(Math.atan2(Math.sin(angleToP - this.leader.angle), Math.cos(angleToP - this.leader.angle)));
-                
-                if (enemy.cooldown <= 0 && (diffToLeader < 1.2 || isGhost)) {
-                    shouldFire = true;
-                    enemy.cooldown = 70 + (Math.random() * 10); 
+            if (canShootAsteroids && enemy.cooldown <= 0) {
+                for (let a of asteroids) {
+                    let adx = a.x - enemy.x; 
+                    if (adx > this.mw / 2) adx -= this.mw; else if (adx < -this.mw / 2) adx += this.mw;
+                    let ady = a.y - enemy.y;
+                    if (ady > this.mh / 2) ady -= this.mh; else if (ady < -this.mh / 2) ady += this.mh;
+                    if (adx*adx + ady*ady < 40000) { 
+                        let angToAst = Math.atan2(ady, adx);
+                        let diffToAst = Math.abs(Math.atan2(Math.sin(angToAst - enemy.angle), Math.cos(angToAst - enemy.angle)));
+                        if (diffToAst < 0.25) { 
+                            asteroidTargetAngle = angToAst;
+                            break;
+                        }
+                    }
                 }
+            }
+
+            if (asteroidTargetAngle !== null) {
+                shouldFire = true;
+                shootAngle = asteroidTargetAngle;
+                spread = 0.02;
+                enemy.cooldown = 20; 
             } 
-            // 2. ANDANADA LATERAL (SNAKE_COLUMN) - EXACTAMENTE A 60 GRADOS
-            else if (this.activeTactic === 'SNAKE_COLUMN' || this.activeTactic === 'DUAL_SNAKE') {
-                let angleToP = Math.atan2(pdy, pdx);
-                let diff = Math.atan2(Math.sin(angleToP - enemy.angle), Math.cos(angleToP - enemy.angle));
-                
-                shootAngle = enemy.angle + (diff > 0 ? Math.PI / 3 : -Math.PI / 3);
-                spread = 0.15;
-                
-                if (enemy.cooldown <= 0 && (Math.abs(diff) > 0.3 || isGhost)) {
-                    shouldFire = true;
-                    enemy.cooldown = 40 + (index * 8); 
-                }
-            }
-            // 3. FUEGO CRUZADO (PINCER, RING, ANTI_TURRETS)
             else {
-                shootAngle = Math.atan2(pdy, pdx);
-                spread = 0.15;
-                if (enemy.cooldown <= 0) {
-                    shouldFire = true;
-                    enemy.cooldown = Math.max(30, 90 - (wave * 3));
+                let pdx = player.x - enemy.x;
+                if (pdx > this.mw / 2) pdx -= this.mw; else if (pdx < -this.mw / 2) pdx += this.mw;
+                let pdy = player.y - enemy.y;
+                if (pdy > this.mh / 2) pdy -= this.mh; else if (pdy < -this.mh / 2) pdy += this.mh;
+                let pDistSqE = pdx * pdx + pdy * pdy;
+
+                if (this.activeTactic === 'ANTI_TURRETS') {
+                    shootAngle = Math.atan2(pdy, pdx);
+                    spread = 0.08;
+                    if (enemy.cooldown <= 0) {
+                        shouldFire = true;
+                        enemy.cooldown = Math.max(45, 95 - (wave * 3)) + (index % 3) * 12;
+                    }
                 }
+                else if (isV) {
+                    if (groupIdx > 0 && !isTail) {
+                        let angleToP = Math.atan2(pdy, pdx);
+                        shootAngle = angleToP;
+                        if (localIdx > 0) {
+                            let side = localIdx % 2 === 0 ? 1 : -1;
+                            if (this.activeTactic === 'DYNAMIC_V') side = localIdx === 1 ? -1 : 1;
+                            shootAngle += side * 0.15; 
+                        }
+                        let diffToP = Math.abs(Math.atan2(Math.sin(angleToP - enemy.angle), Math.cos(angleToP - enemy.angle)));
+                        if (enemy.cooldown <= 0 && (diffToP < 1.0 || isGhost)) {
+                            shouldFire = true;
+                            enemy.cooldown = 50 + (Math.random() * 15); 
+                        }
+                    } else {
+                        shootAngle = isTail ? enemy.angle : anchorAngle;
+                        spread = 0.05;
+                        let angleToP = Math.atan2(pdy, pdx);
+                        let diffToLeader = Math.abs(Math.atan2(Math.sin(angleToP - anchorAngle), Math.cos(angleToP - anchorAngle)));
+                        if (enemy.cooldown <= 0 && (diffToLeader < 1.2 || isGhost)) {
+                            shouldFire = true;
+                            enemy.cooldown = 70 + (Math.random() * 10); 
+                        }
+                    }
+                } 
+                else if (this.activeTactic === 'SNAKE_COLUMN' || this.activeTactic === 'DUAL_SNAKE') {
+                    let angleToP = Math.atan2(pdy, pdx);
+                    let diff = Math.atan2(Math.sin(angleToP - enemy.angle), Math.cos(angleToP - enemy.angle));
+                    shootAngle = enemy.angle + (diff > 0 ? Math.PI / 3 : -Math.PI / 3);
+                    spread = 0.15;
+                    if (enemy.cooldown <= 0 && (Math.abs(diff) > 0.3 || isGhost)) {
+                        shouldFire = true;
+                        enemy.cooldown = 40 + (index * 8); 
+                    }
+                }
+                else {
+                    shootAngle = Math.atan2(pdy, pdx);
+                    spread = 0.15;
+                    if (enemy.cooldown <= 0) {
+                        shouldFire = true;
+                        enemy.cooldown = Math.max(30, 90 - (wave * 3));
+                    }
+                }
+
+                if (!shouldFire || pDistSqE > 600000) shouldFire = false;
             }
 
-            if (shouldFire && pDistSqE < 600000) {
+            if (shouldFire) {
                 shootAngle += (Math.random() - 0.5) * spread;
                 enemyBullets.push(new Projectile(
                     enemy.x, enemy.y,

@@ -3,111 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Matamarcianos Arcade - IA Táctica</title>
+    <title>MataMarcianos</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg transform='translate(32,33) rotate(-18)'%3E%3Cpath d='M -9 8 L -6 14 L 6 14 L 9 8 Z' fill='hsl(350,85%25,30%25)' stroke='hsl(240,30%25,10%25)' stroke-width='2' stroke-linejoin='round'/%3E%3Cellipse cx='0' cy='15' rx='5' ry='2.2' fill='hsl(48,100%25,55%25)'/%3E%3Cpath d='M -17 1 C -17 -20, 17 -20, 17 1 Z' fill='hsl(192,95%25,62%25)' stroke='hsl(240,30%25,10%25)' stroke-width='2.2'/%3E%3Cpath d='M 4 -16 C 12 -14, 15 -6, 15 0 L 9 0 C 9 -6, 7 -11, 2 -15 Z' fill='hsl(200,90%25,45%25)' opacity='0.55'/%3E%3Cpath d='M -12 -3 C -12 -11, -6 -15, -1 -15' fill='none' stroke='hsl(0,0%25,100%25)' stroke-width='2.4' stroke-linecap='round' opacity='0.9'/%3E%3Cpath d='M -26 2 C -26 -2, -16 -3, 0 -3 C 16 -3, 26 -2, 26 2 L 21 9 C 12 11, -12 11, -21 9 Z' fill='hsl(350,92%25,52%25)' stroke='hsl(240,30%25,10%25)' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M -24 4 L 24 4 L 20 9 C 11 11, -11 11, -20 9 Z' fill='hsl(350,88%25,36%25)'/%3E%3Crect x='-18' y='-2.5' width='36' height='3.5' rx='1.75' fill='hsl(220,15%25,22%25)' stroke='hsl(240,30%25,10%25)' stroke-width='1.5'/%3E%3Ccircle cx='-11' cy='5.8' r='2' fill='hsl(48,100%25,55%25)'/%3E%3Ccircle cx='0' cy='6.4' r='2.2' fill='hsl(48,100%25,55%25)'/%3E%3Ccircle cx='11' cy='5.8' r='2' fill='hsl(48,100%25,55%25)'/%3E%3C/g%3E%3C/svg%3E">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- AVISO DE ROTACIÓN FORZADA (Solo visible en vertical) -->
-    <div id="portrait-warning">
-        <h2>⚠️ Gira el móvil</h2>
-        <p>Este juego está diseñado para jugarse en formato horizontal.</p>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <button id="btn-fullscreen" class="btn-corner-icon btn-fullscreen-pos" title="Pantalla completa" aria-label="Pantalla completa">
+            <svg id="icon-fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            <svg id="icon-fs-exit" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 14 10 14 10 20"></polyline>
+                <polyline points="20 10 14 10 14 4"></polyline>
+                <line x1="14" y1="10" x2="21" y2="3"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+        </button>
+
+        <button id="btn-pause" class="btn-corner-icon btn-pause-pos hidden" title="Pausa" aria-label="Pausa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="9" y1="5" x2="9" y2="19"></line>
+                <line x1="15" y1="5" x2="15" y2="19"></line>
+            </svg>
+        </button>
+
+        <div id="hud" class="hidden">
+            <div class="hud-item">PUNTOS: <span id="hud-score">0</span></div>
+            <div class="hud-item">ENEMIGOS: <span id="hud-enemies">0</span></div>
+            <div class="hud-item">OLEADA: <span id="hud-wave">1</span></div>
+            <div class="hud-item">VIDA: <span id="hud-health">100</span>%</div>
+        </div>
+
+        <div id="wave-banner" class="wave-banner hidden" aria-live="polite">
+            <span class="wave-banner-tag">SECTOR HOSTIL</span>
+            <strong id="wave-banner-title" class="wave-banner-title">OLEADA 1</strong>
+            <span id="wave-banner-sub" class="wave-banner-sub">¡Prepárate para el ataque!</span>
+        </div>
+
+        <section id="main-menu" class="menu-screen">
+            <div class="game-logo-container">
+                <svg class="game-logo-svg" viewBox="0 0 120 70">
+                    <ellipse cx="60" cy="35" rx="50" ry="18" fill="hsl(350, 100%, 56%)" stroke="hsl(350, 100%, 75%)" stroke-width="2.5"/>
+                    <ellipse cx="60" cy="30" rx="22" ry="12" fill="hsl(185, 100%, 50%)" opacity="0.85" stroke="hsl(0, 0%, 100%)" stroke-width="1.5"/>
+                    <polygon points="20,38 8,48 28,42" fill="hsl(350, 100%, 33%)"/>
+                    <polygon points="100,38 112,48 92,42" fill="hsl(350, 100%, 33%)"/>
+                    <circle cx="45" cy="42" r="3.5" fill="hsl(51, 100%, 50%)"/>
+                    <circle cx="60" cy="45" r="3.5" fill="hsl(51, 100%, 50%)"/>
+                    <circle cx="75" cy="42" r="3.5" fill="hsl(51, 100%, 50%)"/>
+                </svg>
+            </div>
+            <h1>MataMarcianos</h1>
+            <div class="menu-box">
+                <button id="btn-start" class="btn-primary">INICIAR PARTIDA</button>
+                <button id="btn-help" class="btn-primary btn-secondary">CÓMO JUGAR</button>
+            </div>
+        </section>
+
+        <section id="help-screen" class="menu-screen hidden">
+            <div class="menu-box help-box">
+                <h2>CÓMO JUGAR</h2>
+                <div class="help-content">
+                    Usa las <b>Teclas de Movimiento (WASD / Flechas)</b> o el joystick táctil para pilotar tu nave.<br><br>
+                    Pulsa <b>Espacio</b> para un disparo rápido o mantén pulsado para soltar una ráfaga de hasta 3 disparos.<br><br>
+                    Destruye asteroides y sobrevive a las formaciones tácticas enemigas.
+                </div>
+                <button id="btn-close-help" class="btn-primary">VOLVER</button>
+            </div>
+        </section>
+
+        <section id="pause-screen" class="menu-screen hidden">
+            <div class="menu-box">
+                <h2 class="pause-title">PAUSA</h2>
+                <button id="btn-resume" class="btn-primary">CONTINUAR</button>
+                <button id="btn-main-menu" class="btn-primary btn-secondary">MENÚ PRINCIPAL</button>
+            </div>
+        </section>
+
+        <section id="gameover-screen" class="menu-screen hidden">
+            <div class="menu-box">
+                <h2>FIN DEL JUEGO</h2>
+                <p>Puntuación Final: <span id="final-score" class="final-score-text">0</span></p>
+                <button id="btn-restart" class="btn-primary">JUGAR DE NUEVO</button>
+                <button id="btn-gameover-menu" class="btn-primary btn-secondary">MENÚ PRINCIPAL</button>
+            </div>
+        </section>
+
+        <section id="sandbox-menu" class="menu-screen hidden sandbox-screen-override">
+            <div class="sandbox-container">
+                <select id="sandbox-formation" class="btn-small">
+                    <option value="DYNAMIC_V">DYNAMIC V</option>
+                    <option value="V_QUINTET">V QUINTET</option>
+                    <option value="SNAKE_COLUMN">SNAKE COLUMN</option>
+                    <option value="RING_FIVE">RING_FIVE</option>
+                    <option value="PINCER_SQUAD">PINCER_SQUAD</option>
+                    <option value="ANTI_TURRETS">ANTI TURRETS</option>
+                </select>
+                <input type="number" id="sandbox-enemy-count" class="btn-small sandbox-input" value="5" min="1" max="50" title="Número de Naves">
+                <button id="btn-sandbox-auto" class="btn-small">AUTO: OFF</button>
+                <button id="btn-sandbox-player" class="btn-small">NAVE: ON</button>
+                <button id="btn-sandbox-asteroids" class="btn-small">ROCAS: OFF</button>
+                <button id="btn-close-sandbox" class="btn-small btn-sandbox-exit">SALIR (X)</button>
+            </div>
+        </section>
     </div>
 
-    <button id="btn-fullscreen" class="btn-small" aria-label="Pantalla completa">[ ]</button>
-
-    <main id="game-container">
-        <canvas id="gameCanvas" width="1200" height="800"></canvas>
-        
-        <div id="ui-layer">
-            <header id="hud" class="hidden">
-                <div class="hud-item">Puntos: <span id="score">0</span></div>
-                <div class="hud-item">Bajas: <span id="kills">0</span> / <span id="wave-target">0</span></div>
-                <div class="hud-item">Oleada: <span id="wave">1</span></div>
-                
-                <div class="hud-item health-container">
-                    Vida:
-                    <div class="health-bar-bg"><div id="health-fill" class="health-bar-fill"></div></div>
-                </div>
-                <!-- Botón de pausa solo con icono -->
-                <button id="btn-pause-hud" class="btn-small" aria-label="Pausar juego" style="width: 40px; padding: 5px;">
-                    <span class="pause-icon" aria-hidden="true" style="margin: 0;"></span>
-                </button>
-            </header>
-
-            <div id="wave-announcement" class="hidden"><h2 id="wave-text">¡OLEADA 1!</h2></div>
-
-            <section id="main-menu" class="menu-screen">
-                <h1>Operación Éxodo</h1>
-                <fieldset class="difficulty-control">
-                    <legend>Nivel de dificultad</legend>
-                    <div class="difficulty-options">
-                        <input class="difficulty-option" type="radio" id="difficulty-easy" name="difficulty" value="easy">
-                        <label for="difficulty-easy">Fácil</label>
-                        <input class="difficulty-option" type="radio" id="difficulty-normal" name="difficulty" value="normal" checked>
-                        <label for="difficulty-normal">Normal</label>
-                        <input class="difficulty-option" type="radio" id="difficulty-hard" name="difficulty" value="hard">
-                        <label for="difficulty-hard">Difícil</label>
-                    </div>
-                </fieldset>
-                <button id="btn-start" class="btn">Comenzar Juego</button>
-                <button id="btn-help" class="btn btn-secondary">Cómo jugar</button>
-            </section>
-
-            <section id="help-menu" class="menu-screen hidden">
-                <div class="help-panel">
-                    <h2>Cómo jugar</h2>
-                    <p>Sobrevive a las oleadas de enemigos y protege tu nave.</p>
-                    <ul>
-                        <li><strong>WASD</strong> o las <strong>flechas</strong>: mover la nave.</li>
-                        <li><strong>Espacio</strong> / <strong>Táctil</strong>: disparar y mover.</li>
-                        <li>Pulsa el botón de <strong>Pausa</strong> arriba a la derecha.</li>
-                    </ul>
-                    <button id="btn-close-help" class="btn">Volver</button>
-                </div>
-            </section>
-
-            <section id="pause-menu" class="menu-screen hidden">
-                <h2>Juego Pausado</h2>
-                <button id="btn-resume" class="btn">Reanudar</button>
-                <button id="btn-main-menu" class="btn btn-secondary">Pantalla inicial</button>
-            </section>
-
-            <section id="game-over" class="menu-screen hidden">
-                <h2>Nave Destruida</h2>
-                <p>Puntuación final: <span id="final-score">0</span></p>
-                <button id="btn-restart" class="btn">Volver a Jugar</button>
-            </section>
-
-            <dialog id="main-menu-dialog">
-                <form method="dialog" class="dialog-content">
-                    <h2>¿Volver al inicio?</h2>
-                    <p>La partida actual se perderá.</p>
-                    <div class="dialog-actions">
-                        <button id="btn-cancel-main-menu" class="btn btn-secondary" value="cancel">Cancelar</button>
-                        <button id="btn-confirm-main-menu" class="btn" value="confirm">Confirmar</button>
-                    </div>
-                </form>
-            </dialog>
-
-            <!-- MENÚ EASTER EGG (SANDBOX) DESPLAZADO A LA DERECHA -->
-            <section id="sandbox-menu" class="menu-screen hidden" style="background: transparent; pointer-events: none; align-items: flex-start;">
-                <div class="sandbox-container">
-                    <select id="sandbox-formation" class="btn-small">
-                        <option value="DYNAMIC_V">DYNAMIC V</option>
-                        <option value="V_QUINTET">V QUINTET</option>
-                        <option value="SNAKE_COLUMN">SNAKE COLUMN</option>
-                        <option value="RING_FIVE">RING FIVE</option>
-                        <option value="PINCER_SQUAD">PINCER SQUAD</option>
-                        <option value="ANTI_TURRETS">ANTI TURRETS</option>
-                    </select>
-                    <button id="btn-sandbox-auto" class="btn-small">AUTO: OFF</button>
-                    <button id="btn-sandbox-player" class="btn-small">NAVE: ON</button>
-                    <button id="btn-sandbox-asteroids" class="btn-small">ROCAS: OFF</button>
-                    <button id="btn-close-sandbox" class="btn-small btn-sandbox-exit">SALIR (X)</button>
-                </div>
-            </section>
-        </div>
-    </main>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
