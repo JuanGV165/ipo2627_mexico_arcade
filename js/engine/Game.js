@@ -103,17 +103,16 @@ export class Game {
     }
 
     getRandomMenuSpawnInterval() {
-        return 15000 + Math.random() * 5000;
+        return 10000 + Math.random() * 5000;
     }
 
     pickMenuPattern() {
         const roll = Math.random();
         let pattern;
-        if (roll < 0.30) pattern = 'DYNAMIC_V';
-        else if (roll < 0.56) pattern = 'V_QUINTET';
-        else if (roll < 0.74) pattern = 'SMALL_GROUPS';
-        else if (roll < 0.87) pattern = 'SNAKE_WAVE';
-        else pattern = 'SNAKE_STRAIGHT';
+        if (roll < 0.25) pattern = 'DYNAMIC_V';
+        else if (roll < 0.50) pattern = 'V_QUINTET';
+        else if (roll < 0.75) pattern = 'SMALL_GROUPS';
+        else pattern = 'SNAKE_WAVE';
 
         if ((pattern === 'SNAKE_WAVE' || pattern === 'SNAKE_STRAIGHT') && pattern === this.lastMenuPattern) {
             const alternatives = ['DYNAMIC_V', 'V_QUINTET', 'SMALL_GROUPS'];
